@@ -70,6 +70,10 @@ writing) and running any of it on a real device (none available in this environm
 `vcs-mcxn947/` builds against an MCUXpresso SDK toolchain that lives outside this repo (see that
 project's README) — only its source is here.
 
+**Tracking progress?** See [`WORKLOG.md`](WORKLOG.md) — a dated log of what happened and why, plus
+a status dashboard and a ranked list of current blockers. Start there before digging into
+individual subproject READMEs.
+
 ---
 
 ## MLIoT_Love50 Team (Faculty of Electrical & Electronics Engineering - HCMUT EE Machine Learning & IoT Lab)
