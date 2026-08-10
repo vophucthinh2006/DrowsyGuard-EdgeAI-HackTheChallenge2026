@@ -38,7 +38,7 @@ The system runs on the **Arduino UNO Q** platform utilizing two distinct process
 ---
 
 ## Tech Stack & Hardware
-* **Hardware**: Arduino UNO Q (Qualcomm QRB2210 + STM32U585), RGB/IR Camera Modules, Vibration Motors, Cooling Fan Relay, Status LEDs, Buzzer, GPS Module[cite: 1].
+* **Hardware**: Arduino UNO Q (Qualcomm QRB2210 + STM32U585), RGB/IR Camera Modules, Vibration Motors, Cooling Fan Relay, Status LEDs, Buzzer.
 * **AI & Software**: MediaPipe, FLOAT32 - INT8 Quantization, Python, C/C++, Qualcomm AI Hub.
 
 ---
