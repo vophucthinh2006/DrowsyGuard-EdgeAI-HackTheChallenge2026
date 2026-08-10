@@ -87,6 +87,23 @@ void BOARD_InitPins(void) {
   CLOCK_EnableClock(kCLOCK_Gpio2);
   CLOCK_EnableClock(kCLOCK_Gpio4);
 
+  /* ---- Debug console (LPUART4 / FLEXCOMM4), MCU-Link virtual COM port ---
+   * hardware_init.c clocks and attaches FLEXCOMM4 and calls
+   * BOARD_InitDebugConsole(), but that only brings the *peripheral* up --
+   * without this pin mux the TX/RX signals never reach the physical pins,
+   * so PRINTF() runs, the UART shifts bits out internally, and nothing
+   * ever appears on the serial console. Every other project pin_mux.c in
+   * this workspace (touch_rgb, wifi_sensing_npu) configures this pair;
+   * this file initially didn't, which is exactly the bug that made every
+   * PRINTF() in src/ silently disappear until this fix. PORT1_8=FC4_P0
+   * (TXD), PORT1_9=FC4_P1 (RXD), both kPORT_MuxAlt2. */
+  const port_pin_config_t debugUartPinConfig = {
+      kPORT_PullDisable, kPORT_LowPullResistor, kPORT_FastSlewRate,
+      kPORT_PassiveFilterDisable, kPORT_OpenDrainDisable, kPORT_LowDriveStrength,
+      kPORT_MuxAlt2, kPORT_InputBufferEnable, kPORT_InputNormal, kPORT_UnlockRegister};
+  PORT_SetPinConfig(PORT1, 8U, &debugUartPinConfig); /* FC4_P0 / LPUART4 TXD */
+  PORT_SetPinConfig(PORT1, 9U, &debugUartPinConfig); /* FC4_P1 / LPUART4 RXD */
+
   /* ---- CAN0 (FLEXCAN0), on-board transceiver, header J10 ---------------- */
   const port_pin_config_t canPinConfig = {
       kPORT_PullDisable, kPORT_LowPullResistor, kPORT_FastSlewRate,

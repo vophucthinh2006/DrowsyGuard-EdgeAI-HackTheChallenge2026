@@ -43,6 +43,19 @@ The system runs on the **Arduino UNO Q** platform utilizing two distinct process
 
 ---
 
+## Repository layout
+
+| Path | What |
+|---|---|
+| [`specs/`](specs/README.md) | Full engineering spec set — system requirements, dev standards, drowsiness domain spec, CAN ICD, vehicle control, test plan/cases, benchmark log |
+| [`dms-ap/`](dms-ap/README.md) | Driver Monitoring System, application processor (Arduino UNO Q / QRB2210 Linux side) — camera, vision models, drowsiness domain logic, alert fusion |
+| [`drowsyguard_vcs/`](drowsyguard_vcs/README.md) | Vehicle Control Simulator firmware (FRDM-MCXN947) — CAN link, motor drive, safe-stop, physical alerts |
+
+`drowsyguard_vcs/` builds against an MCUXpresso SDK toolchain that lives outside this repo (see
+that project's README) — only its source is here.
+
+---
+
 ## MLIoT_Love50 Team (Faculty of Electrical & Electronics Engineering - HCMUT EE Machine Learning & IoT Lab)
 * **Nguyen Hoang Trieu** – Team Lead & Embedded System
 * **Tang Phon Thinh** – AI & Computer Vision
