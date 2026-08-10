@@ -7,8 +7,8 @@
 # **Current status: this file is documentation, not yet a code-generation
 # input.** `generate.py` does not exist. The two implementations it should
 # generate already exist, hand-written from specs/04-interface-control-document.md:
-#   - vcs-mcxn947/src/icd/icd.h + icd.c   (C, VCS side)
-#   - dms-ap/src/drowsyguard/link/icd.py   (Python, DMS-AP side)
+#   - vcs-mcxn947/src/icd/icd.h + icd.c              (C, VCS side)
+#   - dms-ap/app/python/drowsyguard/link/icd.py       (Python, DMS-AP side)
 # They agree today because both were written directly from spec 04 and are
 # checked against the same crc_vectors.csv in this directory. That is a
 # weaker guarantee than "cannot disagree" (DEV-002's actual goal) — until

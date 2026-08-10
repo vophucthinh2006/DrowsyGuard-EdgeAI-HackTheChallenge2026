@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Drives a recorded JSONL FrameObservation corpus
-(dms-ap/src/drowsyguard/inference/replay_backend.py format) through the
+(dms-ap/app/python/drowsyguard/inference/replay_backend.py format) through the
 exact production domains+fusion pipeline and prints the level timeline.
 This is the mechanism specs/06-test-plan.md §2 describes as "the
 highest-value test in the project" -- a scaffold for it, not the real
@@ -23,7 +23,7 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "dms-ap" / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "dms-ap" / "app" / "python"))
 
 from drowsyguard.config import load_thresholds  # noqa: E402
 from drowsyguard.domains.d1_distraction import D1Distraction  # noqa: E402

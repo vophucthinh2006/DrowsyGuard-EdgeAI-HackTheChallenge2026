@@ -14,7 +14,7 @@ from typing import Any
 
 import yaml
 
-DEFAULT_THRESHOLDS_PATH = Path(__file__).resolve().parents[2] / "config" / "thresholds.yaml"
+DEFAULT_THRESHOLDS_PATH = Path(__file__).resolve().parents[1] / "config" / "thresholds.yaml"
 
 
 @dataclass(frozen=True, slots=True)

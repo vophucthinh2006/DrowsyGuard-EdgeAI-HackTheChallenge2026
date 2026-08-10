@@ -1,7 +1,7 @@
 # 03 — Drowsiness Domain Specification
 
 **Document:** DG-SPEC-03 · Rev 0.1 · 2026-08-10 · DRAFT
-**Applies to:** `dms-ap/src/drowsyguard/domains/` and `fusion/`
+**Applies to:** `dms-ap/app/python/drowsyguard/domains/` and `fusion/`
 **Normative:** every table marked **NORMATIVE** is machine-checked against
 `config/thresholds.yaml` by CI (see [02 §6](02-development-standards.md#6-configuration-and-the-threshold-single-source-rule))
 

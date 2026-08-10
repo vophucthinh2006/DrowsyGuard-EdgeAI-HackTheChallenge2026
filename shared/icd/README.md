@@ -13,7 +13,7 @@ written** — `icd.yaml` here, with `generate.py` emitting the C header, the Pyt
 - **`crc_vectors.csv`** exists and is the canonical CRC-8 test data (CAN-070).
 - **`generate.py` does not exist.** The two real implementations —
   [`vcs-mcxn947/src/icd/icd.h`+`icd.c`](../../vcs-mcxn947/src/icd/) (C) and
-  [`dms-ap/src/drowsyguard/link/icd.py`](../../dms-ap/src/drowsyguard/link/icd.py) (Python) — are
+  [`dms-ap/app/python/drowsyguard/link/icd.py`](../../dms-ap/app/python/drowsyguard/link/icd.py) (Python) — are
   **hand-written**, each directly from spec 04, and cross-checked only by eye and by both reading
   the same `crc_vectors.csv` values (copied into each language's own test/self-test code, since
   neither runtime can read a CSV from flash or wants a CSV dependency for one constant table).
@@ -26,7 +26,7 @@ and fail silently on the bus.
 ## What closing this properly looks like
 
 1. `generate.py`: parse `icd.yaml`, emit `vcs-mcxn947/src/icd/icd.h` and
-   `dms-ap/src/drowsyguard/link/icd.py` byte-for-byte identical to what's committed today (first
+   `dms-ap/app/python/drowsyguard/link/icd.py` byte-for-byte identical to what's committed today (first
    run should produce a **zero diff** against the current hand-written files — that's the
    correctness check for the generator itself).
 2. Wire `generate.py --check` into CI (DEV-003): re-run it, fail the build on any diff. This is

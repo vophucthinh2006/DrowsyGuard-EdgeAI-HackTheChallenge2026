@@ -33,13 +33,24 @@ from pathlib import Path
 import cv2
 import mediapipe as mp
 import numpy as np
-import tensorflow as tf
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision as mp_vision
 
 from ..capture.camera import Camera
 from ..domains.types import FrameObservation
 from .backend import InferenceBackend
+
+# tflite-runtime first: this runs on an embedded ARM SBC (QRB2210) doing
+# inference, not training -- tflite-runtime is the purpose-built,
+# order-of-magnitude-smaller package for exactly that. Falls back to the
+# full `tensorflow` package (dev machines, or if tflite-runtime turns out
+# to have no arm64 wheel for the UNO Q's image -- unverified either way,
+# no device available in this environment). Same `Interpreter` API either
+# way, so nothing below this needs to know which one loaded.
+try:
+    from tflite_runtime.interpreter import Interpreter
+except ImportError:  # pragma: no cover - depends on the install target
+    from tensorflow.lite import Interpreter  # type: ignore[no-redef]
 
 EYE_CROP_SIZE = (96, 48)  # (W, H)
 MOUTH_CROP_SIZE = (64, 64)
@@ -123,12 +134,12 @@ class BlazeFaceCnnBackend(InferenceBackend):
 
         self._camera = camera
 
-        self._eye_interpreter = tf.lite.Interpreter(model_path=str(eye_cnn_path))
+        self._eye_interpreter = Interpreter(model_path=str(eye_cnn_path))
         self._eye_interpreter.allocate_tensors()
         self._eye_input = self._eye_interpreter.get_input_details()
         self._eye_output = self._eye_interpreter.get_output_details()
 
-        self._yawn_interpreter = tf.lite.Interpreter(model_path=str(yawn_cnn_path))
+        self._yawn_interpreter = Interpreter(model_path=str(yawn_cnn_path))
         self._yawn_interpreter.allocate_tensors()
         self._yawn_input = self._yawn_interpreter.get_input_details()
         self._yawn_output = self._yawn_interpreter.get_output_details()

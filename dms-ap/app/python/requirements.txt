@@ -1,0 +1,18 @@
+# App Lab installs this with uv when the app is deployed (confirmed: App Lab
+# uses uv to prepare python/requirements.txt packages). opencv-python/cv2 is
+# reportedly pre-installed on the UNO Q image; listed anyway so `pip install
+# -r` in bench/dev mode (off-device) still works standalone.
+#
+# tflite-runtime, not the full `tensorflow` package: this device is an
+# embedded ARM SBC (QRB2210) running inference, not a training/dev machine.
+# `tensorflow` is a multi-hundred-MB package that may not even have a
+# prebuilt wheel for this SoC/Python/OS combination; tflite-runtime is the
+# purpose-built, order-of-magnitude-smaller package for exactly this job.
+# NOT yet verified installable on a real UNO Q -- flag and swap back to
+# `tensorflow` (or a Qualcomm AI Hub / QNN runtime, per the pitch deck's own
+# "Qualcomm AI Hub" toolchain claim) if tflite-runtime has no arm64 wheel
+# for this image's Python version.
+opencv-python>=4.9
+mediapipe>=0.10
+tflite-runtime>=2.14
+pyyaml>=6.0

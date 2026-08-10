@@ -4,11 +4,19 @@ version = "0.1.0"
 description = "DrowsyGuard DMS application processor (Arduino UNO Q / QRB2210 Linux side)"
 requires-python = ">=3.11,<3.12"
 readme = "README.md"
+# See app/python/requirements.txt for the actual on-device dependency list
+# App Lab installs (via uv) -- this pyproject.toml is for local dev/testing
+# only (`uv pip install -e .`), not deployed to the UNO Q. The two lists are
+# kept in sync by hand; a platform_machine split is used here only because
+# arm64 (tflite-runtime, matches the real device) and x86_64 (this dev
+# machine, where tflite-runtime wheels are less reliably available) need
+# different choices to both actually install.
 dependencies = [
     "numpy>=1.26,<2",
     "opencv-python>=4.9",
     "mediapipe>=0.10",
-    "tensorflow>=2.16",
+    "tflite-runtime>=2.14; platform_machine != 'x86_64'",
+    "tensorflow>=2.16; platform_machine == 'x86_64'",
     "pyyaml>=6.0",
 ]
 
@@ -20,22 +28,24 @@ dev = [
     "black>=24.0",
 ]
 
-[project.scripts]
-drowsyguard = "drowsyguard.app:main"
+# No [project.scripts] entry: app/python/main.py is the App Lab entry point
+# (run as `python main.py`, or dev/bench mode `python app/python/main.py
+# --preview`), not an installed console script -- it lives outside the
+# `drowsyguard` package on purpose (see main.py's own docstring).
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/drowsyguard"]
+packages = ["app/python/drowsyguard"]
 
 [tool.black]
 line-length = 100
 
 [tool.ruff]
 line-length = 100
-src = ["src", "tests", "tools"]
+src = ["app/python", "tests", "prototypes"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -45,7 +55,7 @@ python_version = "3.11"
 strict = true
 # specs/02-development-standards.md DEV-041: strict typing is required only
 # on the packages where a type confusion becomes a wrong alert.
-files = ["src/drowsyguard/domains", "src/drowsyguard/fusion"]
+files = ["app/python/drowsyguard/domains", "app/python/drowsyguard/fusion"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
