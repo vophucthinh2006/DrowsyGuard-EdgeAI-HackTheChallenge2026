@@ -1,0 +1,42 @@
+# DG-SPEC-03 Threshold Configuration
+d1_distraction:
+  yaw_limit_deg:
+    value: 30
+    rationale: "Head turned beyond normal forward scanning (Spec 03 Section 3.2)"
+  pitch_down_limit_deg:
+    value: 20
+    rationale: "Eyes/head pointed at lap or phone"
+  active_dwell_ms:
+    value: 2000
+    rationale: "NHTSA 2-second single-glance limit for visual-manual tasks"
+    
+d2_yawning:
+  mar_open:
+    value: 0.60
+    rationale: "Mouth aspect ratio empirical threshold for wide open mouth"
+  yawn_min_ms:
+    value: 1500
+    rationale: "Differentiates from speech (150-250ms). Yawn typically > 1.5s"
+  d2_window_ms:
+    value: 120000
+    rationale: "2-minute rolling window to count sustained fatigue events"
+  d2_active_count:
+    value: 2
+    rationale: "A single yawn is normal. 2 in 2 mins is elevated fatigue"
+
+d3_eye_closure:
+  active_ms:
+    value: 800
+    rationale: "~2x upper bound of normal blink (100-400ms)"
+  severe_ms:
+    value: 1500
+    rationale: "Standard automotive marker for microsleep"
+  critical_ms:
+    value: 3000
+    rationale: "Unresponsive limit, assumes no driver in control"
+  perclos_window_ms:
+    value: 60000
+    rationale: "60s window for P80 statistical stability (Wierwille FHWA)"
+  perclos_active:
+    value: 0.08
+    rationale: "8% onset of meaningful drowsiness"
