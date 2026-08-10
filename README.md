@@ -43,7 +43,7 @@ The system runs on the **Arduino UNO Q** platform utilizing two distinct process
 
 ---
 
-## MLIoT_Love50 Team (Faculty of Electrical & Electronics Engineering - HCMUT)
+## MLIoT_Love50 Team (Faculty of Electrical & Electronics Engineering - HCMUT EE Machine Learning & IoT Lab)
 * **Nguyen Hoang Trieu** – Team Lead & Embedded System
 * **Tang Phon Thinh** – AI & Computer Vision
 * **Van Dac Phong Truc** – Software & Integration
