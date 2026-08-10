@@ -42,7 +42,7 @@ from drowsyguard.domains.d3_eyeclosure import D3EyeClosure
 from drowsyguard.domains.types import DomainState
 from drowsyguard.fusion.ladder import AlertLadder, FusionInputs
 from drowsyguard.inference.backend import InferenceBackend
-from drowsyguard.inference.blazeface_cnn_backend import BlazeFaceCnnBackend
+from drowsyguard.inference.face_mesh_backend import FaceMeshBackend
 from drowsyguard.link import icd
 from drowsyguard.link.ap_rt_transport import ApRtTransport, NullTransport
 from drowsyguard.telemetry import logger
@@ -215,7 +215,7 @@ def _build_pipeline(
 ) -> _Pipeline:
     thresholds = load_thresholds(thresholds_path) if thresholds_path else load_thresholds()
     camera = Camera(camera_index)
-    backend = BlazeFaceCnnBackend(models_dir, camera)
+    backend = FaceMeshBackend(models_dir, camera, mar_threshold=thresholds.d2.mar_open)
     return _Pipeline(backend, thresholds, transport, time.monotonic)
 
 

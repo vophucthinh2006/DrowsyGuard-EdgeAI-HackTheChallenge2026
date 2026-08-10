@@ -104,6 +104,18 @@ verified installable on a real UNO Q (no device available); `inference/blazeface
 tries `tflite_runtime` first and falls back to `tensorflow.lite`, so either works without a code
 change.
 
+## Deployment to Arduino UNO Q (App Lab)
+
+To deploy the full dual-brain application to an actual Arduino UNO Q device:
+
+1. **Do not use `git clone` on the board's terminal.** The App Lab structure (`app.yaml` + `python/` + `sketch/`) requires deployment from a host machine to ensure both cores are programmed.
+2. Install [Arduino CLI](https://arduino.github.io/arduino-cli/) or use the Arduino App Lab portal on your host PC.
+3. Connect the Arduino UNO Q to your PC.
+4. Deploy the `app/` directory:
+   - This process will automatically compile and flash `app/sketch/sketch.ino` to the STM32 MCU.
+   - It will also synchronize the `app/python/` directory (including models and config) to the QRB2210 Linux MPU.
+5. Once deployed, the device will automatically run `app/python/main.py` using the App Lab router bridge.
+
 ## Quick start
 
 ```bash
