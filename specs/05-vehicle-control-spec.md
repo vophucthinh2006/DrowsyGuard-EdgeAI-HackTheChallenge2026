@@ -53,29 +53,38 @@ known deviation, since it degrades the L1 "soft beep" alert
 
 ### 2.2 MCU peripheral allocation
 
-| Function | Peripheral | Notes |
-|---|---|---|
-| Motor PWM ×2 channels | eFlexPWM or CTIMER match | Two independent duty channels |
-| Motor direction ×2, enable | GPIO | Enable SHALL default low at reset |
-| CAN | FlexCAN0, classical mode | See [04](04-interface-control-document.md) |
-| Buzzer | CTIMER PWM (tone generation) | Frequency-agile for the alert patterns |
-| Status LED (R/G/B) | GPIO, **active-LOW** on this board | Red PIO0_10, green PIO0_27, blue PIO1_2 |
-| Hazard lamps | GPIO ×2 | 1 Hz alternating |
-| Vibration motor | GPIO + low-side switch | Not driven directly from a GPIO pin |
-| Fan relay | GPIO + opto/relay module | Flyback protection mandatory |
-| ACK button | GPIO with pull-up + ≥20 ms debounce | |
-| Operator re-arm | GPIO with pull-up | Deliberately a separate control from ACK |
-| E-stop sense | GPIO | Sense only — the actual cut is in hardware |
-| Motor current sense | LPADC | |
-| Watchdog | WWDT | |
-| Console | LPUART, 115200 8N1 | |
+**🟡 DESIGNED and implemented** in `NPX_Workspace/drowsyguard_vcs/` (builds clean, not yet flashed
+— see that project's README for the full cross-reference trail). Every pin below is checked against
+either an SDK reference example this workspace can build, or the FRDM-MCXN947 UM12018 Arduino
+header tables (17–20) for conflicts — none are guessed.
+
+| Function | Peripheral | Pin | Notes |
+|---|---|---|---|
+| Motor L / R PWM | PWM1 (eFlexPWM) SM0 / SM1, channel A | PORT2_6 / PORT2_4 (J3-15 / J3-11), ALT5 | Two independent duty channels, edge-aligned |
+| Motor L dir (AIN1/AIN2) | GPIO | PORT0_29 / PORT1_23 (J1-D2/D3) | TB6612FNG truth table (forward/reverse/brake/coast) |
+| Motor R dir (BIN1/BIN2) | GPIO | PORT0_30 / PORT0_31 (J1-D4/D7) | same truth table |
+| Driver STBY (shared enable) | GPIO | PORT0_28 (J2-D8), active-high | Defaults low (disabled) at reset |
+| CAN | FlexCAN0, classical mode | PORT1_10 (TXD) / PORT1_11 (RXD), ALT11 | See [04](04-interface-control-document.md); on-board TJA1057GTK/3Z transceiver, header J10 |
+| Buzzer | PWM1 SM2, channel A (tone generation) | PORT2_2 (J3-7), ALT5 | Frequency-agile — `PWM_SetupPwm()` re-called only when the frequency actually changes |
+| Status LED (R/G/B) | GPIO, **active-LOW** on this board | PORT0_10 / PORT0_27 / PORT1_2 | Matches `../touch_rgb`, `../wifi_sensing_npu` in this workspace |
+| Hazard lamps | GPIO ×2 | PORT0_25 / PORT4_0 (J2-D13/D18) | 1 Hz, both together (not alternating L/R) |
+| Vibration motor | GPIO + low-side switch | PORT0_24 (J2-D11) | |
+| Fan relay | GPIO + opto/relay module | PORT0_26 (J2-D12) | Flyback protection mandatory |
+| ACK button | GPIO with pull-up + ≥20 ms debounce | PORT4_1 (J2-D19) | |
+| Operator re-arm | GPIO with pull-up | PORT2_3 (J3-5) | One physical button serves both the initial arm and every later re-arm (see safety.h) |
+| E-stop sense | GPIO with pull-up | PORT2_5 (J3-9) | Sense only — the actual cut is in hardware (VEH-074) |
+| Motor current sense | LPADC | **not wired** | OI-05-01 — firmware treats a 0 reading as "not wired", never as a fault |
+| Watchdog | WWDT0, 500 ms | — | |
+| Console | LPUART (FLEXCOMM4), 115200 8N1 | PORT1_8/9 | Standard debug console pins on this board |
 
 **VEH-003** — All peripheral clock gates and resets SHALL be explicitly enabled at init
 (see [02 DEV-032](02-development-standards.md#41-platform-specific-rules-learned-the-hard-way)). A
 peripheral with no clock reads back zeros and produces no error.
 
 **VEH-004** — Pin assignment SHALL avoid PIO1_3, which is connected to the board's touch electrode
-through R156, and SHALL be checked against `pin_mux.c` before wiring, not after.
+through R156, and SHALL be checked against `pin_mux.c` before wiring, not after. (The pin table
+above has no PIO1_3 use; that constraint carries over from `touch_rgb`/`wifi_sensing_npu` in the
+same workspace even though this project doesn't use the touch pad itself.)
 
 ---
 
@@ -344,7 +353,7 @@ SHALL be a latching mushroom-head switch.
 | OI-05-02 ⚠️ | Measure `MIN_MOVE_DUTY` on the loaded chassis | HW | Before first motion test |
 | OI-05-03 | Decide TB6612FNG vs L298N and record the deviation if L298N | HW | Day 1 |
 | OI-05-04 | Verify 85 dB(A) limit by measurement | Test | Before demo |
-| OI-05-05 | Confirm chosen pins do not collide with `pin_mux.c` defaults or PIO1_3 | FW | Before wiring |
+| ~~OI-05-05~~ | ~~Confirm chosen pins do not collide with `pin_mux.c` defaults or PIO1_3~~ **Closed** — full pin assignment implemented in `drowsyguard_vcs/board_port/pin_mux.c`, cross-checked against UM12018 Tables 17–20 and the SDK's own reference examples; builds clean. Physical wiring itself is still pending. | FW | Closed 2026-08-10 |
 | OI-05-06 | Characterise the actual deceleration profile from the 1500 ms duty ramp (VEH-041) | Test | Before demo |
 
 ---
@@ -354,3 +363,4 @@ SHALL be a latching mushroom-head switch.
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 0.1 | 2026-08-10 | ML_IoT_Love50 | Initial baseline |
+| 0.2 | 2026-08-10 | ML_IoT_Love50 | §2.2 pin table replaced with the implemented, cross-referenced assignment from `NPX_Workspace/drowsyguard_vcs/`. OI-05-05 closed. Firmware builds clean; not yet flashed/measured (no §10/§8 items below are closed by this). |
