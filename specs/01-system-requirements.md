@@ -76,7 +76,7 @@ implied by any demonstration:
    │ ┌────────────────────┐   ┌───────────────────┐ │    │
    │ │ DMS-AP  QRB2210    │   │ DMS-RT  STM32U585 │ │◄───┘
    │ │ Linux              │──▶│ real-time         │ │
-   │ │ YOLOv8n INT8       │   │ alert actuation   │ │
+   │ │ MediaPipe face-landmark pipeline │   │ alert actuation   │ │
    │ │ D1/D2/D3 + fusion  │   │ FDCAN             │ │
    │ └────────────────────┘   └─────────┬─────────┘ │
    └──────────────────────────────────────┬─────────┘
@@ -137,8 +137,7 @@ model weights and the threshold configuration file. No driver data SHALL survive
 **SYS-FR-001** — The DMS SHALL capture frames from a driver-facing camera at a configured
 capture rate of **≥ 10 frames per second**.
 
-**SYS-FR-002** — The DMS SHALL run a quantized YOLO-family detector producing, per frame, the
-classes: `eye_open`, `eye_closed`, `yawn`, `face`, and a head-pose estimate (yaw, pitch).
+**SYS-FR-002** — The DMS SHALL run a face-landmark detector producing, per frame, a consistent face landmark set and a head-pose estimate (yaw, pitch). From the landmarks, the pipeline SHALL derive eye-open/closed, mouth-open, and face-presence states.
 
 **SYS-FR-003** — Each detection SHALL carry a confidence score in [0.0, 1.0]. Detections below
 the configured confidence floor SHALL be treated as absent, not as negative evidence.
@@ -234,7 +233,7 @@ Allocated budget:
 |---|---:|---|
 | Sensor exposure + transfer + colour convert | 25 ms | DMS-AP |
 | Pre-process (letterbox, normalise, quantise) | 10 ms | DMS-AP |
-| Inference — YOLOv8n INT8 @ 320×320 | 80 ms | DMS-AP |
+| Inference — MediaPipe face-landmark detector @ 320×320 | 80 ms | DMS-AP |
 | Post-process + domain update + fusion | 10 ms | DMS-AP |
 | AP → RT handoff | 10 ms | DMS |
 | CAN frame assembly + arbitration + transmission | 5 ms | DMS-RT |

@@ -21,7 +21,7 @@ DrowsyGuard is an offline, privacy-preserving, and low-latency Edge-AI driver mo
 
 ## System Architecture
 The system runs on the **Arduino UNO Q** platform utilizing two distinct processing layers:
-* **Qualcomm Dragonwing QRB2210 (Linux Core)**: Runs retrained YOLOv8-nano vision pipelines to track eyes (PERCLOS), mouth (yawn rate), and head movements (nodding) to compute real-time drowsiness scores (Level 0–3).
+* **Qualcomm Dragonwing QRB2210 (Linux Core)**: Runs MediaPipe face-landmark vision pipelines to track eyes (PERCLOS), mouth (yawn rate), and head movements (nodding) to compute real-time drowsiness scores (Level 0–3).
 * **STM32U585 (Microcontroller Core)**: Executes ultra-low latency safety actions (<100ms), triggering buzzers, haptic feedback, fan relays, and status LEDs.
 
 ---

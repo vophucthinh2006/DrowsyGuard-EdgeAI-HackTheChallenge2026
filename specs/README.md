@@ -13,7 +13,7 @@ DrowsyGuard is a two-node embedded system:
 
 | Node | Hardware | Role |
 |---|---|---|
-| **DMS** — Driver Monitoring System | Arduino UNO Q (Qualcomm Dragonwing QRB2210 + STM32U585) | Camera capture, YOLO inference, drowsiness fusion, alert ladder, connectivity |
+| **DMS** — Driver Monitoring System | Arduino UNO Q (Qualcomm Dragonwing QRB2210 + STM32U585) | Camera capture, MediaPipe face-landmark inference, drowsiness fusion, alert ladder, connectivity |
 | **VCS** — Vehicle Control Simulator | NXP FRDM-MCXN947 + 4× TT gear motor + H-bridge driver | Vehicle dynamics simulation, speed limiting, safe-stop, physical alert actuators |
 
 The two nodes are joined by a **500 kbit/s classical CAN bus**. The DMS decides *how drowsy the

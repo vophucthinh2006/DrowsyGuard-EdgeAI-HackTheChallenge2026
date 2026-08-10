@@ -149,7 +149,7 @@ reported** — reporting a distraction detection rate without it overstates the 
 
 ### 4.1 What is measured
 
-Mouth-open state per frame, from the YOLO `yawn` class corroborated by a Mouth Aspect Ratio (MAR)
+Mouth-open state per frame, from landmark-based mouth aperture estimation corroborated by a Mouth Aspect Ratio (MAR)
 computed from mouth landmarks. A **yawn event** is a mouth-open episode long enough to be a yawn
 rather than speech.
 
