@@ -1,5 +1,5 @@
 /*
- * Board-port macros for drowsyguard_vcs (FRDM-MCXN947 / VCS node).
+ * Board-port macros for vcs-mcxn947 (FRDM-MCXN947 / VCS node).
  *
  * Every macro here names a peripheral/pin pair configured in
  * ../pin_mux.c — see that file for the UM12018 cross-reference each

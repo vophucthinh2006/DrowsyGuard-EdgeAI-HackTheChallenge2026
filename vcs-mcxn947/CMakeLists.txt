@@ -1,4 +1,4 @@
-# drowsyguard_vcs — Vehicle Control Simulator node (FRDM-MCXN947).
+# vcs-mcxn947 — Vehicle Control Simulator node (FRDM-MCXN947).
 #
 # Out-of-tree ("freestanding") MCUXpresso SDK application: the source lives
 # in this git repo, outside the SDK checkout, and only refers back into the
@@ -19,7 +19,7 @@ include(${SdkRootDirPath}/cmake/extension/mcux.cmake)
 file(RELATIVE_PATH BOARD_PORT_REL_PATH
      ${SdkRootDirPath} ${CMAKE_CURRENT_SOURCE_DIR}/board_port)
 
-project(drowsyguard_vcs LANGUAGES C CXX ASM
+project(vcs_mcxn947 LANGUAGES C CXX ASM
         PROJECT_BOARD_PORT_PATH ${BOARD_PORT_REL_PATH})
 
 include(${SdkRootDirPath}/CMakeLists.txt)

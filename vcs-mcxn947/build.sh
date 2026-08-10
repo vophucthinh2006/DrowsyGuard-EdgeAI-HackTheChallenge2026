@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =========================================================================
-# FRDM-MCXN947 (drowsyguard_vcs)  -  build (west/CMake) + flash over
+# FRDM-MCXN947 (vcs-mcxn947)  -  build (west/CMake) + flash over
 # MCU-Link (CMSIS-DAP)
 #
 #   ./build.sh            build, then flash
@@ -50,7 +50,7 @@ say() { printf '\033[1;36m>> %s\033[0m\n' "$*"; }
 die() { printf '\033[1;31m!! %s\033[0m\n' "$*" >&2; exit 1; }
 
 find_elf() {
-	local f="$BUILD_DIR/drowsyguard_vcs_${CORE}.elf"
+	local f="$BUILD_DIR/vcs_mcxn947_${CORE}.elf"
 	[ -f "$f" ] && { echo "$f"; return 0; }
 	f="$(find "$BUILD_DIR" -maxdepth 1 -name '*.elf' | head -1)"
 	[ -n "$f" ] && { echo "$f"; return 0; }

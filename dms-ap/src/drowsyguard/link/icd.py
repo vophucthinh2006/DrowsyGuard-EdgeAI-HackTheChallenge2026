@@ -1,12 +1,13 @@
 """DrowsyGuard CAN Interface Control Document -- wire format.
 
-Byte-exact mirror of specs/04-interface-control-document.md and
-drowsyguard_vcs/src/icd/icd.h. specs/02-development-standards.md DEV-002
-wants this generated from a single shared `icd.yaml`; that generator does
-not exist yet, so this file and the C header are two independent
-hand-written implementations of the same contract -- change one, change the
-other in the same commit (DEV-092), and see link/README.md for what closing
-that gap properly would look like.
+Byte-exact implementation of ../../../../shared/icd/icd.yaml (the canonical,
+machine-readable message catalogue) and specs/04-interface-control-document.md.
+This is the Python side of the ICD; ../../../../vcs-mcxn947/src/icd/icd.h is
+the C side. `shared/icd/generate.py` does not exist yet (specs/02 DEV-002 is
+still open -- see ../../../../shared/icd/README.md for exactly what that
+means), so this file is hand-written and hand-kept in sync with the C side
+rather than generated. Any field change here SHALL also be made in icd.yaml
+and icd.h/icd.c in the same commit (DEV-092).
 
 Transport note: this module only does wire encode/decode. It does NOT open
 a CAN socket. The CAN controller in the DMS is on the STM32U585 (DMS-RT),

@@ -1,11 +1,12 @@
 """CRC-8 SAE-J1850 (poly 0x1D, init 0xFF, xorout 0xFF).
 
-Mirrors drowsyguard_vcs/src/icd/crc8.c byte-for-byte, including the exact
-same test vectors (specs/04-interface-control-document.md CAN-070 wants both
-nodes' CRC implementations verified against a shared vector set before
-integration -- until the shared/icd/crc_vectors.csv file from specs 02
-DEV-002 exists, `TEST_VECTORS` below and the C array in crc8.c ARE that
-shared set, kept in sync by hand. If you change one, change the other.).
+Mirrors vcs-mcxn947/src/icd/crc8.c byte-for-byte. `TEST_VECTORS` below is a
+copy of ../../../../shared/icd/crc_vectors.csv -- the canonical copy, kept
+in sync by hand (see ../../../../shared/icd/README.md) since neither this
+module nor the C firmware wants a runtime CSV-parsing dependency for one
+constant table. specs/04-interface-control-document.md CAN-070 wants both
+nodes' CRC implementations verified against this shared vector set before
+integration.
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ def crc8(data: bytes) -> int:
     return crc ^ _XOROUT
 
 
-# Identical to the kVecA..kVecF vectors in drowsyguard_vcs/src/icd/crc8.c.
+# Identical to the kVecA..kVecF vectors in vcs-mcxn947/src/icd/crc8.c.
 TEST_VECTORS: list[tuple[bytes, int]] = [
     (b"", 0x00),
     (bytes([0x00]), 0x3B),

@@ -45,14 +45,23 @@ The system runs on the **Arduino UNO Q** platform utilizing two distinct process
 
 ## Repository layout
 
-| Path | What |
-|---|---|
-| [`specs/`](specs/README.md) | Full engineering spec set — system requirements, dev standards, drowsiness domain spec, CAN ICD, vehicle control, test plan/cases, benchmark log |
-| [`dms-ap/`](dms-ap/README.md) | Driver Monitoring System, application processor (Arduino UNO Q / QRB2210 Linux side) — camera, vision models, drowsiness domain logic, alert fusion |
-| [`drowsyguard_vcs/`](drowsyguard_vcs/README.md) | Vehicle Control Simulator firmware (FRDM-MCXN947) — CAN link, motor drive, safe-stop, physical alerts |
+Follows [specs/02-development-standards.md §2](specs/02-development-standards.md#2-repository-layout)
+exactly — that document is the authoritative layout; this table is a map onto the current state of
+it, including what's genuinely still missing.
 
-`drowsyguard_vcs/` builds against an MCUXpresso SDK toolchain that lives outside this repo (see
-that project's README) — only its source is here.
+| Path | What | Status |
+|---|---|---|
+| [`specs/`](specs/README.md) | Full engineering spec set — system requirements, dev standards, drowsiness domain spec, CAN ICD, vehicle control, test plan/cases, benchmark log | Complete |
+| [`dms-ap/`](dms-ap/README.md) | Driver Monitoring System, application processor (Arduino UNO Q / QRB2210 Linux side) — camera, vision models, drowsiness domain logic, alert fusion | 61/61 unit tests pass; camera pipeline unexercised, see its README |
+| [`dms-rt/`](specs/02-development-standards.md#2-repository-layout) | STM32U585 firmware — the actual DMS-side CAN transmitter (see [`dms-ap/src/drowsyguard/link/README.md`](dms-ap/src/drowsyguard/link/README.md)) | **Not started.** No AP↔RT transport chosen yet — this is the single biggest open item in the whole project |
+| [`vcs-mcxn947/`](vcs-mcxn947/README.md) | Vehicle Control Simulator firmware (FRDM-MCXN947) — CAN link, motor drive, safe-stop, physical alerts | Builds clean; not yet flashed/measured on hardware |
+| [`shared/icd/`](shared/icd/README.md) | The canonical DMS↔VCS CAN interface — `icd.yaml`, `crc_vectors.csv` | Source-of-truth files exist; the C/Python implementations are still hand-synced, not generated (`generate.py` doesn't exist yet) |
+| [`tools/`](tools/replay_corpus.py) | Cross-cutting scripts — corpus replay today, flashers/`can_inject.py` in the future | `replay_corpus.py` only so far |
+| [`tests/`](tests/README.md) | Cross-node integration + HIL tests | Empty — needs `tools/can_inject.py` or real two-node hardware first |
+| [`docs/benchmarks/`](docs/benchmarks/README.md) | Raw measurement artefacts backing every number in [specs/08](specs/08-benchmark-log.md) | Empty — 0/15 acceptance criteria measured so far |
+
+`vcs-mcxn947/` builds against an MCUXpresso SDK toolchain that lives outside this repo (see that
+project's README) — only its source is here.
 
 ---
 

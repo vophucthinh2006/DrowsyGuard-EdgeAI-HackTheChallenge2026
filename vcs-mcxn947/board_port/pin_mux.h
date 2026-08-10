@@ -1,5 +1,5 @@
 /*
- * Board-port pin muxing for drowsyguard_vcs (FRDM-MCXN947).
+ * Board-port pin muxing for vcs-mcxn947 (FRDM-MCXN947).
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */

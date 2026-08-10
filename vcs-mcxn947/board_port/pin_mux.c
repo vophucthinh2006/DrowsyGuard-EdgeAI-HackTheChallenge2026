@@ -1,5 +1,5 @@
 /*
- * Board-port pin muxing for drowsyguard_vcs (FRDM-MCXN947 / VCS node).
+ * Board-port pin muxing for vcs-mcxn947 (FRDM-MCXN947 / VCS node).
  *
  * Every pin below is cross-referenced against a real source rather than
  * guessed (contrast with wifi_sensing_npu's LPSPI6 ALT value, which is an

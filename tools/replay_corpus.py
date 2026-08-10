@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
-"""Drives a recorded JSONL FrameObservation corpus (inference/replay_backend.py
-format) through the exact production domains+fusion pipeline and prints the
-level timeline. This is the mechanism specs/06-test-plan.md §2 describes as
-"the highest-value test in the project" -- a scaffold for it, not the real
+"""Drives a recorded JSONL FrameObservation corpus
+(dms-ap/src/drowsyguard/inference/replay_backend.py format) through the
+exact production domains+fusion pipeline and prints the level timeline.
+This is the mechanism specs/06-test-plan.md §2 describes as "the
+highest-value test in the project" -- a scaffold for it, not the real
 tools/eval_corpus.py from specs 06 §4/07, which needs an actual annotated
 corpus (specs 06 §5) that does not exist yet.
+
+Lives at the repo-root `tools/` per
+specs/02-development-standards.md §2 ("flashers, corpus annotator, bench
+scripts"), not inside dms-ap/, even though today it only drives the DMS-AP
+pipeline -- the same top-level location is where a future VCS-side
+`can_inject.py` (specs 06 §3.2 / 07) belongs too.
 
 Usage:
     python tools/replay_corpus.py path/to/corpus.jsonl
@@ -16,7 +23,7 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "dms-ap" / "src"))
 
 from drowsyguard.config import load_thresholds  # noqa: E402
 from drowsyguard.domains.d1_distraction import D1Distraction  # noqa: E402

@@ -76,7 +76,7 @@ design baseline, not an as-built record. Concretely:
 - The CAN pin mapping on the **DMS (UNO Q)** side is still an ⚠️ ASSUMPTION (see
   [04 §9 Open Items](04-interface-control-document.md#9-open-items)). The **VCS (FRDM-MCXN947)**
   side is no longer an assumption: its CAN0/PWM1/WWDT pin mapping is implemented and builds clean
-  in `NPX_Workspace/drowsyguard_vcs/` — see that project's README for the cross-reference trail.
+  in `vcs-mcxn947/` — see that project's README for the cross-reference trail.
   It has not been flashed or measured on real hardware yet, so it is 🟡 DESIGNED, not ✅ VERIFIED.
 - All threshold values in [03](03-drowsiness-domain-spec.md) are derived from published
   literature and must be re-tuned against the team's own annotated corpus before acceptance.
@@ -94,4 +94,4 @@ whole.
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 0.1 | 2026-08-10 | ML_IoT_Love50 | Initial baseline, pre-hardware |
-| 0.2 | 2026-08-10 | ML_IoT_Love50 | VCS firmware implemented against specs 02/04/05 (`NPX_Workspace/drowsyguard_vcs/`); closes 04-OI-04-05/partial-03/04 and 05-OI-05-05 for the VCS side only |
+| 0.2 | 2026-08-10 | ML_IoT_Love50 | VCS firmware implemented against specs 02/04/05 (`vcs-mcxn947/`); closes 04-OI-04-05/partial-03/04 and 05-OI-05-05 for the VCS side only |

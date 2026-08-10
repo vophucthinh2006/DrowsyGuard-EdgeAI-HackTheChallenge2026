@@ -53,7 +53,7 @@ known deviation, since it degrades the L1 "soft beep" alert
 
 ### 2.2 MCU peripheral allocation
 
-**🟡 DESIGNED and implemented** in `NPX_Workspace/drowsyguard_vcs/` (builds clean, not yet flashed
+**🟡 DESIGNED and implemented** in `vcs-mcxn947/` (builds clean, not yet flashed
 — see that project's README for the full cross-reference trail). Every pin below is checked against
 either an SDK reference example this workspace can build, or the FRDM-MCXN947 UM12018 Arduino
 header tables (17–20) for conflicts — none are guessed.
@@ -353,7 +353,7 @@ SHALL be a latching mushroom-head switch.
 | OI-05-02 ⚠️ | Measure `MIN_MOVE_DUTY` on the loaded chassis | HW | Before first motion test |
 | OI-05-03 | Decide TB6612FNG vs L298N and record the deviation if L298N | HW | Day 1 |
 | OI-05-04 | Verify 85 dB(A) limit by measurement | Test | Before demo |
-| ~~OI-05-05~~ | ~~Confirm chosen pins do not collide with `pin_mux.c` defaults or PIO1_3~~ **Closed** — full pin assignment implemented in `drowsyguard_vcs/board_port/pin_mux.c`, cross-checked against UM12018 Tables 17–20 and the SDK's own reference examples; builds clean. Physical wiring itself is still pending. | FW | Closed 2026-08-10 |
+| ~~OI-05-05~~ | ~~Confirm chosen pins do not collide with `pin_mux.c` defaults or PIO1_3~~ **Closed** — full pin assignment implemented in `vcs-mcxn947/board_port/pin_mux.c`, cross-checked against UM12018 Tables 17–20 and the SDK's own reference examples; builds clean. Physical wiring itself is still pending. | FW | Closed 2026-08-10 |
 | OI-05-06 | Characterise the actual deceleration profile from the 1500 ms duty ramp (VEH-041) | Test | Before demo |
 
 ---
@@ -363,4 +363,4 @@ SHALL be a latching mushroom-head switch.
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 0.1 | 2026-08-10 | ML_IoT_Love50 | Initial baseline |
-| 0.2 | 2026-08-10 | ML_IoT_Love50 | §2.2 pin table replaced with the implemented, cross-referenced assignment from `NPX_Workspace/drowsyguard_vcs/`. OI-05-05 closed. Firmware builds clean; not yet flashed/measured (no §10/§8 items below are closed by this). |
+| 0.2 | 2026-08-10 | ML_IoT_Love50 | §2.2 pin table replaced with the implemented, cross-referenced assignment from `vcs-mcxn947/`. OI-05-05 closed. Firmware builds clean; not yet flashed/measured (no §10/§8 items below are closed by this). |

@@ -55,7 +55,7 @@ def test_vcs_status_decode_rejects_wrong_dlc():
 
 def test_vcs_status_round_trip():
     """Builds a VCS_STATUS payload the way the VCS firmware would (mirrors
-    DG_EncodeVcsStatus in drowsyguard_vcs/src/icd/icd.c) and decodes it."""
+    DG_EncodeVcsStatus in vcs-mcxn947/src/icd/icd.c) and decodes it."""
     from drowsyguard.link.crc8 import crc8
 
     payload = bytearray(8)

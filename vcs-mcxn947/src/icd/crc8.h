@@ -3,7 +3,10 @@
  * every periodic DrowsyGuard CAN frame (specs/04-interface-control-document.md
  * CAN-011). Both nodes on the bus must compute byte-identical output; that is
  * why this file carries its own self-test vectors rather than trusting one
- * implementation to be right (see specs/04 OI-04-04 / CAN-070).
+ * implementation to be right (see specs/04 OI-04-04 / CAN-070). The vectors
+ * in crc8.c are copied from ../../../shared/icd/crc_vectors.csv — the
+ * canonical copy — since firmware can't read a CSV off flash at runtime;
+ * keep both copies identical by hand (see ../../../shared/icd/README.md).
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */

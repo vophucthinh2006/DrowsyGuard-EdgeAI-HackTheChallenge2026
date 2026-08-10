@@ -30,7 +30,7 @@ the CAN pair SHALL be twisted for its full length.
 
 | Node | Controller | Peripheral | Status |
 |---|---|---|---|
-| VCS | FRDM-MCXN947 | FlexCAN0, classical mode, PORT1_10 (TXD) / PORT1_11 (RXD), ALT11 | 🟡 DESIGNED — pin mapping confirmed against the SDK's own `flexcan/interrupt_transfer` reference example and the board schematic (Table 14 "CAN header pinout"); firmware in `NPX_Workspace/drowsyguard_vcs/` builds clean against it. Not yet flashed/measured on a live bus (no ✅ until [08](08-benchmark-log.md) has a run) |
+| VCS | FRDM-MCXN947 | FlexCAN0, classical mode, PORT1_10 (TXD) / PORT1_11 (RXD), ALT11 | 🟡 DESIGNED — pin mapping confirmed against the SDK's own `flexcan/interrupt_transfer` reference example and the board schematic (Table 14 "CAN header pinout"); firmware in `vcs-mcxn947/` builds clean against it. Not yet flashed/measured on a live bus (no ✅ until [08](08-benchmark-log.md) has a run) |
 | DMS | Arduino UNO Q → STM32U585 | FDCAN1 in classical CAN mode | ⚠️ **ASSUMPTION** — see §9, untouched by the VCS bring-up above |
 
 **CAN-003** — Classical CAN is used, not CAN FD, even though both controllers support FD.
@@ -258,8 +258,8 @@ reported in `DIAG_RESP`. A demonstration that experienced a bus-off is not a cle
 |---|---|---|---|---|
 | **OI-04-01** ⚠️ | The STM32U585 on the Arduino UNO Q is assumed to expose FDCAN1 TX/RX on header-reachable pins. **Unconfirmed against the UNO Q schematic/pinout.** | If false, the whole DMS→VCS link must be re-planned | Hardware lead | +24 h from board arrival |
 | **OI-04-02** | Fallback if OI-04-01 fails: SPI CAN controller (MCP2515-class) on the DMS side. Adds ≈1 ms latency and one day of bring-up. Second fallback: UART + framed protocol with the same payloads. | Schedule | Hardware lead | Decision within 24 h |
-| **OI-04-03** | ~~Bit-timing register values for FlexCAN (MCXN947)~~ **VCS side resolved**: `FLEXCAN_CalculateImprovedTimingValues()` computes them at runtime from the measured peripheral clock (see `drowsyguard_vcs/src/can_link/can_link.c`), avoiding hand-computed registers entirely — still to be **verified on a scope** (TC-CAN-003), not yet done. FDCAN (STM32U585) side unchanged: open. | Intermittent errors if mismatched | Firmware leads | Scope check before first two-node bring-up |
-| **OI-04-04** | CRC-8 implementation must be bit-identical on both sides — verify with a shared test vector before integration, not during it. VCS-side implementation + 7 self-test vectors exist (`drowsyguard_vcs/src/icd/crc8.c`, run at every boot); DMS-side implementation does not exist yet, so cross-verification is still open. | Total link failure that looks like wiring | ICD owner | Before integration |
+| **OI-04-03** | ~~Bit-timing register values for FlexCAN (MCXN947)~~ **VCS side resolved**: `FLEXCAN_CalculateImprovedTimingValues()` computes them at runtime from the measured peripheral clock (see `vcs-mcxn947/src/can_link/can_link.c`), avoiding hand-computed registers entirely — still to be **verified on a scope** (TC-CAN-003), not yet done. FDCAN (STM32U585) side unchanged: open. | Intermittent errors if mismatched | Firmware leads | Scope check before first two-node bring-up |
+| **OI-04-04** | CRC-8 implementation must be bit-identical on both sides — verify with a shared test vector before integration, not during it. VCS-side implementation + 7 self-test vectors exist (`vcs-mcxn947/src/icd/crc8.c`, run at every boot); DMS-side implementation does not exist yet, so cross-verification is still open. | Total link failure that looks like wiring | ICD owner | Before integration |
 | **OI-04-05** | Transceiver part selection: **VCS side resolved** — the FRDM-MCXN947 has an on-board TJA1057GTK/3Z already wired to CAN0 and header J10, confirmed against the schematic, no part to select. DMS side (whether the UNO Q can supply a transceiver's 3.3 V rail) is unchanged: open. | Bring-up blocker (DMS side only) | Hardware lead | +24 h from UNO Q arrival |
 
 **CAN-070** — OI-04-04's test vector SHALL be committed as `shared/icd/crc_vectors.csv` and SHALL
@@ -291,4 +291,4 @@ Do these in order. Do not skip ahead when it "should work".
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 0.1 | 2026-08-10 | ML_IoT_Love50 | Initial baseline |
-| 0.2 | 2026-08-10 | ML_IoT_Love50 | VCS-side CAN0 pin mapping, timing calc and transceiver confirmed against the FRDM-MCXN947 schematic + SDK reference example; firmware in `NPX_Workspace/drowsyguard_vcs/` builds against it. OI-04-03/04/05 partially closed (VCS half only). DMS-side OI-04-01 unchanged/still open. |
+| 0.2 | 2026-08-10 | ML_IoT_Love50 | VCS-side CAN0 pin mapping, timing calc and transceiver confirmed against the FRDM-MCXN947 schematic + SDK reference example; firmware in `vcs-mcxn947/` builds against it. OI-04-03/04/05 partially closed (VCS half only). DMS-side OI-04-01 unchanged/still open. |

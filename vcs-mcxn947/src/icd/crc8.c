@@ -32,11 +32,11 @@ uint8_t DG_Crc8(const uint8_t *data, size_t len) {
   return (uint8_t)(crc ^ DG_CRC8_XOROUT);
 }
 
-/* Independently computed (Python, same poly/init/xorout) — see
- * specs/04-interface-control-document.md OI-04-04 / CAN-070. These are the
- * vectors both nodes must agree on before either is trusted to discard a
- * "bad" frame; keep shared/icd/crc_vectors.csv (once the DMS-AP repo exists)
- * identical to this table. */
+/* Copied from ../../../shared/icd/crc_vectors.csv — the canonical copy.
+ * These are the vectors both nodes must agree on before either is trusted
+ * to discard a "bad" frame (specs/04 OI-04-04 / CAN-070); the Python side's
+ * copy is dms-ap/src/drowsyguard/link/crc8.py's TEST_VECTORS. Keep all
+ * three identical by hand until shared/icd/generate.py exists. */
 typedef struct {
   const uint8_t *data;
   size_t len;

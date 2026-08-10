@@ -1,4 +1,4 @@
-# drowsyguard_vcs — Vehicle Control Simulator node (FRDM-MCXN947)
+# vcs-mcxn947 — Vehicle Control Simulator node (FRDM-MCXN947)
 
 The VCS half of **DrowsyGuard** (Qualcomm Future Makers 2026, team ML_IoT_Love50). Full spec
 set: [`../specs/`](../specs/README.md) — this firmware implements
@@ -123,19 +123,26 @@ refuse to silently resume.
 ## Source layout
 
 ```
-drowsyguard_vcs/
+vcs-mcxn947/
 ├── board_port/          # pin_mux.c/h, cm33_core0/{app.h,hardware_init.c,prj.conf}
 ├── src/
 │   ├── main.c            # boots everything, owns can_rx_task/control_task/alert_task/telemetry_task
-│   ├── icd/               # wire format — the ONLY place message layouts are written (DEV-002)
+│   ├── icd/               # wire format, hand-mirrors ../../shared/icd/icd.yaml (DEV-002 — see
+│   │   │                    ../../shared/icd/README.md for exactly what's generated vs hand-written)
 │   │   ├── icd.h / icd.c    encode/decode for every spec-04 message
-│   │   └── crc8.h / crc8.c  CRC-8 SAE-J1850 + self-test vectors (CAN-070)
+│   │   └── crc8.h / crc8.c  CRC-8 SAE-J1850 + self-test vectors, copied from
+│   │                        ../../shared/icd/crc_vectors.csv (CAN-070)
 │   ├── can_link/           # FlexCAN0 driver, timeout supervisor, event repeaters
 │   ├── safety/             # vehicle state machine, watchdog, fault evaluation
 │   ├── motion/             # PWM motor drive, speed governor, safe-stop sequencer
 │   └── alerts/              # buzzer/LED/vibration/fan/hazard pattern engine
 └── build.sh               # same build/flash pattern as NPX_Workspace/{touch_rgb,wifi_sensing_npu}
 ```
+
+The CMake project (and the .elf it produces) is named `vcs_mcxn947` (underscore — CMake target
+naming convention in this workspace), while the directory and repo-facing name use a hyphen
+(`vcs-mcxn947`) to match [specs/02 §2](../specs/02-development-standards.md#2-repository-layout)'s
+repository layout exactly.
 
 ## Next steps (in order)
 

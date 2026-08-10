@@ -1,13 +1,14 @@
 /*
  * DrowsyGuard CAN Interface Control Document — wire format.
  *
- * Byte-exact mirror of specs/04-interface-control-document.md. This is the
- * ONLY place message layouts are written on the VCS side. Per
- * specs/02-development-standards.md DEV-002, once the DMS-AP repository
- * exists this file's content becomes the source `shared/icd/icd.yaml` is
- * generated from (or generates) — until then, this header IS the interface
- * contract and hand-editing a byte offset here without updating spec 04 in
- * the same change is a defect (DEV-092).
+ * Byte-exact implementation of ../../../shared/icd/icd.yaml (the canonical,
+ * machine-readable message catalogue) and specs/04-interface-control-document.md.
+ * This is the C side of the ICD; ../../../dms-ap/src/drowsyguard/link/icd.py
+ * is the other. `shared/icd/generate.py` does not exist yet (specs/02
+ * DEV-002 is still open — see ../../../shared/icd/README.md for exactly what
+ * that means), so this file is hand-written and hand-kept in sync with the
+ * Python side rather than generated. Any field change here SHALL also be
+ * made in icd.yaml and icd.py in the same commit (DEV-092).
  *
  * All multi-byte fields are little-endian (CAN-010).
  *
