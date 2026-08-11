@@ -1,6 +1,6 @@
 # 02 — Development & Deployment Standards
 
-**Document:** DG-SPEC-02 · Rev 0.1 · 2026-08-10 · DRAFT
+**Document:** DG-SPEC-02 · Rev 0.3 · 2026-08-11 · DRAFT
 **Applies to:** every person and every commit on the DrowsyGuard repository
 
 ---
@@ -25,7 +25,7 @@ layout on both sides at once.
 ```
 drowsyguard/
 ├── specs/                     # this specification set — the contract
-├── dms-ap/                    # QRB2210, Linux, Python 3.11 — an Arduino App Lab app
+├── dms-ap/                    # QRB2210, Linux, Python 3.13 on-device (App Lab's base image)
 │   ├── app/                     # THE deployable unit — everything App Lab syncs to the device
 │   │   ├── app.yaml               # App Lab manifest (name, version, bricks, ports)
 │   │   ├── python/                 # runs on the MPU (QRB2210/Linux)
@@ -77,6 +77,19 @@ not as a sibling directory. See `dms-ap/README.md` "App Lab" section for the ver
 behind this structure (it was confirmed against a real published App Lab app on GitHub, not
 guessed) and DEV-092: this is exactly "reality disagreed with the spec, update the spec in the
 same change" applied to this document itself.
+
+**Revision note (Rev 0.3):** this document originally stated `dms-ap/` runs **Python 3.11** —
+carried over from the dev/bench `pyproject.toml` pin, never checked against the real device. The
+real App Lab base image (`ghcr.io/arduino/app-bricks/python-apps-base:0.10.1`) runs **CPython
+3.13**. This mattered in practice: `tflite-runtime` (PyPI, last release 2.14.0) ships wheels only
+up to `cp311`, so pinning it unconditionally in `app/python/requirements.txt` made `uv`'s resolver
+fail the *entire* install on-device (uv resolves the file as one solve, not package-by-package) —
+including `mediapipe`, which has nothing to do with tflite-runtime and would have installed fine on
+its own. Fixed with `python_version` markers in `requirements.txt` and `pyproject.toml` so
+`tflite-runtime` is only requested where a wheel exists and `tensorflow` is pulled in otherwise —
+which `inference/blazeface_cnn_backend.py`'s existing `try: tflite_runtime except ImportError:
+tensorflow.lite` fallback already expected, it just never got the chance to run while the install
+itself was failing. DEV-092 applies here too.
 
 **DEV-002** — `shared/icd/icd.yaml` SHALL be the only place message layouts are written. The C
 header, the Python module and the `.dbc` SHALL be **generated** from it by `generate.py`.
@@ -402,3 +415,5 @@ pull request** as the discovery. Do not leave a known-false number in a document
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 0.1 | 2026-08-10 | ML_IoT_Love50 | Initial baseline |
+| 0.2 | 2026-08-10 | ML_IoT_Love50 | §2 layout: DMS-RT is `dms-ap/app/sketch/`, not a separate top-level `dms-rt/` (DEV-092) |
+| 0.3 | 2026-08-11 | ML_IoT_Love50 | §2 layout: `dms-ap/` runs Python 3.13 on-device, not 3.11 — fixes `tflite-runtime` install failure (DEV-092) |

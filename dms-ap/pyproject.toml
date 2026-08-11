@@ -7,16 +7,19 @@ readme = "README.md"
 # See app/python/requirements.txt for the actual on-device dependency list
 # App Lab installs (via uv) -- this pyproject.toml is for local dev/testing
 # only (`uv pip install -e .`), not deployed to the UNO Q. The two lists are
-# kept in sync by hand; a platform_machine split is used here only because
-# arm64 (tflite-runtime, matches the real device) and x86_64 (this dev
-# machine, where tflite-runtime wheels are less reliably available) need
-# different choices to both actually install.
+# kept in sync by hand. The split used to be platform_machine (arm64 vs
+# x86_64) on the assumption that arm64 == the real device == tflite-runtime
+# always installable there. That assumption was wrong: the real App Lab
+# container runs CPython 3.13, and tflite-runtime (PyPI, last release
+# 2.14.0) has no cp313 wheel on any architecture -- python_version is the
+# signal that actually determines whether tflite-runtime installs, not CPU
+# arch. See app/python/requirements.txt's comment for the full story.
 dependencies = [
     "numpy>=1.26,<2",
     "opencv-python>=4.9",
     "mediapipe>=0.10",
-    "tflite-runtime>=2.14; platform_machine != 'x86_64'",
-    "tensorflow>=2.16; platform_machine == 'x86_64'",
+    "tflite-runtime>=2.14; python_version < '3.12'",
+    "tensorflow>=2.16; python_version >= '3.12'",
     "pyyaml>=6.0",
 ]
 

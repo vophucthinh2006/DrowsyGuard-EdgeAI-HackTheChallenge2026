@@ -94,15 +94,22 @@ step, with a warning against copying a bare-metal STM32 CAN library: this board'
 is `arduino:zephyr:unoq` — a **Zephyr-based** Arduino core, not bare-metal STM32duino, so the usual
 STM32 CAN libraries may not even apply.
 
-### tflite-runtime, not tensorflow
+### tflite-runtime, not tensorflow — except where tflite-runtime can't install
 
-`app/python/requirements.txt` and `pyproject.toml` use `tflite-runtime` (falls back to full
-`tensorflow` only on x86_64 dev machines). The QRB2210 is an embedded ARM SBC doing inference, not
-training — `tflite-runtime` is the purpose-built, order-of-magnitude-smaller package for that job,
-and the full `tensorflow` wheel may not even be prebuilt for this SoC/OS/Python combination. Not
-verified installable on a real UNO Q (no device available); `inference/blazeface_cnn_backend.py`
-tries `tflite_runtime` first and falls back to `tensorflow.lite`, so either works without a code
-change.
+`app/python/requirements.txt` and `pyproject.toml` prefer `tflite-runtime`, falling back to full
+`tensorflow`. The QRB2210 is an embedded ARM SBC doing inference, not training — `tflite-runtime`
+is the purpose-built, order-of-magnitude-smaller package for that job.
+
+**Confirmed on a real UNO Q (2026-08-11):** the App Lab base image
+(`ghcr.io/arduino/app-bricks/python-apps-base:0.10.1`) runs **CPython 3.13**, not the 3.11 this
+repo originally assumed (specs/02 Rev 0.3). `tflite-runtime`'s last PyPI release (2.14.0) has no
+`cp313` wheel on any architecture, so an unconditional `tflite-runtime>=2.14` pin made `uv` fail
+the *entire* `requirements.txt` resolve on-device — including `mediapipe`, unrelated to
+tflite-runtime, which showed up as `ModuleNotFoundError` in the container logs purely as collateral
+damage. Both files now gate `tflite-runtime` behind `python_version < "3.12"` and pull `tensorflow`
+otherwise, so `uv` picks the installable one instead of failing the whole resolve.
+`inference/blazeface_cnn_backend.py`'s `try: tflite_runtime except ImportError: tensorflow.lite`
+was already written for this and needed no code change — only the dependency markers were wrong.
 
 ## Deployment to Arduino UNO Q (App Lab)
 
