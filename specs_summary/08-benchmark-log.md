@@ -1,48 +1,52 @@
-# Tóm tắt 08 — Benchmark Log
+# Summary of 08 — Benchmark Log
 
-Nguồn: [specs/08-benchmark-log.md](../specs/08-benchmark-log.md)
+Source: [specs/08-benchmark-log.md](../../specs/08-benchmark-log.md)
 
-## Vai trò tài liệu
-Đây là **sổ ghi số đo thật**, khác hẳn spec 01/06 (chứa budget/target). Tại Rev 0.1: **NO
-MEASUREMENTS RECORDED YET** — mọi bảng đều `_pending_`. Đây là nơi số liệu sẽ được điền vào
-khi có hardware thật, không phải nơi để copy con số dự đoán từ spec khác.
+## Role of this document
+This is the **log of real measurements**, distinct from specs 01/06 (which contain
+budgets/targets). At Rev 0.1: **NO MEASUREMENTS RECORDED YET** — every table is `_pending_`.
+This is where numbers get filled in once real hardware exists, not a place to copy predicted
+numbers from other specs.
 
-## Quy tắc ghi số (rất nghiêm ngặt — đáng nhớ)
-- Chỉ ghi số **đã đo được**, không ghi target/budget/ước tính.
-- Mỗi entry cần **run ID** (`BM-YYYY-MM-DD-NN`) + thư mục artefact `docs/benchmarks/<run-id>/`
-  chứa raw capture, log, git SHA, SHA-256 của `thresholds.yaml`, environment record.
-- **Không được** lấy số từ build `+dirty`.
-- Latency/timing luôn báo **P50/P95/max**, không bao giờ báo mean (mean giấu đuôi phân phối —
-  và đuôi phân phối chính là thứ 1 tài xế buồn ngủ thực sự trải nghiệm).
-- Metric phát hiện luôn báo **theo cặp**: TPR **và** false-alarm rate cùng operating point — TPR
-  đơn lẻ bị coi là kết quả không đầy đủ.
-- Khi kết quả trượt mục tiêu: vẫn ghi **đúng như đo được** kèm nghi vấn nguyên nhân. Chạy lại
-  đến khi ra số đẹp rồi chỉ ghi số đó = **fabrication dữ liệu**, bị cấm rõ ràng.
-- Mỗi kết quả ghi tên người đo (không phải để đổ lỗi — để hỏi được người biết rig hôm đó ra sao).
+## Rules for recording numbers (strict — worth remembering)
+- Only record numbers that were **actually measured**, never targets/budgets/estimates.
+- Every entry needs a **run ID** (`BM-YYYY-MM-DD-NN`) + an artefact directory
+  `docs/benchmarks/<run-id>/` with the raw capture, log, git SHA, `thresholds.yaml` SHA-256,
+  environment record.
+- **Never** from a `+dirty` build.
+- Latency/timing always reported as **P50/P95/max**, never mean (mean hides the tail — and the
+  tail is exactly what a drowsy driver experiences).
+- Detection metrics always reported **as a pair**: TPR **and** false-alarm rate at the same
+  operating point — a TPR alone is an incomplete result.
+- When a result misses its target: still record it **as measured**, with a note on the
+  suspected cause. Re-running until a good number appears and only recording that one is
+  **data fabrication**, explicitly forbidden.
+- Every result names the person who took it (not for blame — so the person who knows what the
+  rig looked like that day can be asked).
 
-## Cấu trúc các bảng (đều đang trống, sẽ điền khi có hardware)
-Latency & timing (pipeline P50/P95/max, stage breakdown, time-to-alert thực tế người dùng cảm
-nhận, control-loop jitter) · Inference throughput (FPS bền vững, hành vi nhiệt, RAM/flash
-footprint) · Detection quality (operating point chính AC-01..04, chi tiết theo domain, **false
-alarm breakdown theo nguyên nhân** — bảng này được ghi chú là "hữu ích nhất tài liệu" vì nó chỉ
-ra threshold nào sai, không chỉ tổng số sai) · Interface (CAN vật lý, sức khoẻ bus 30 phút,
-timeout behaviour) · Vehicle (drivetrain, speed governing, safe-stop, alerts) · Power · Scoreboard
-15 acceptance criteria (**hiện tại 0/15 đã đo**) · Anomaly register (mọi quan sát bất thường,
-kể cả cái sau này giải thích được — cái được ghi lại là cái được sửa) · **Numbers currently
-quoted in external material**.
+## Table structure (all currently empty, to be filled with hardware)
+Latency & timing (pipeline P50/P95/max, stage breakdown, driver-experienced time-to-alert,
+control-loop jitter) · Inference throughput (sustained FPS, thermal behaviour, RAM/flash
+footprint) · Detection quality (headline operating point AC-01..04, per-domain detail,
+**false-alarm breakdown by cause** — noted as "the most useful table in this document" since it
+shows which threshold is wrong, not just the total) · Interface (CAN physical, 30-min bus
+health, timeout behaviour) · Vehicle (drivetrain, speed governing, safe-stop, alerts) · Power ·
+Scoreboard of 15 acceptance criteria (**currently 0/15 measured**) · Anomaly register (every
+unexpected observation, even ones later explained away — the ones written down are the ones that
+get fixed) · **Numbers currently quoted in external material**.
 
-## Mục cần chú ý nhất: "Numbers currently quoted in external material"
-Bảng đối chiếu mọi con số dùng trong pitch deck/script/submission với việc nó có backing đo
-đạc hay không:
-- "dưới 200ms end-to-end" → **Target**, chưa đo — phải nói "mục tiêu của chúng tôi là", thay
-  bằng P95 đo thật khi có AC-05.
-- "dưới 100ms trên MCU" (deck slide 11) → **Target**, budget thực tế trong spec là 20ms.
-- **"3 giây = 100 mét" (script 0:08, 4:40) — LỖI SỐ HỌC ĐANG TỒN TẠI, CHƯA SỬA:** 100m trong 3s
-  tương ứng 120km/h, nhưng script nói 90km/h → con số đúng phải là **75 mét**. Đây là kiểu lỗi
-  "giám khảo cầm máy tính sẽ kiểm tra ra ngay" — cần sửa tốc độ thành 120km/h hoặc sửa số liệu
-  thành 75m trước khi ghi hình/thuyết trình.
-- "nano INT8 ở ≈N FPS" (deck slide 20) → **chỗ trống chưa điền**, phải điền số thật từ AC-06 hoặc xoá slide.
-- "TRL 4" → tự đánh giá hợp lý ở thời điểm hiện tại, chỉ lên TRL 5-6 khi AC-01…15 đo được trên
-  hardware thật.
+## Most important section: "Numbers currently quoted in external material"
+A table cross-checking every number used in the pitch deck/script/submission against whether
+it's backed by a real measurement:
+- "under 200ms end-to-end" → **Target**, not measured — must say "our target is," replace with
+  real measured P95 once AC-05 is run.
+- "under 100ms on the MCU" (deck slide 11) → **Target**; the actual spec budget is 20ms.
+- **"3 seconds = 100 meters" (script 0:08, 4:40) — CURRENTLY WRONG, UNFIXED:** 100m in 3s
+  corresponds to 120km/h, but the script says 90km/h → the correct number should be **75
+  meters**. Exactly the kind of error "a judge with a calculator will check" — needs fixing
+  (either the speed to 120km/h or the distance to 75m) before recording any video/presentation.
+- "nano INT8 at ≈N FPS" (deck slide 20) → **unfilled placeholder**, must fill from AC-06 or delete the slide.
+- "TRL 4" → reasonable self-assessment now, only becomes TRL 5-6 once AC-01…15 are measured on
+  real hardware.
 
-**Việc cần làm trước khi quay bất kỳ video/demo nào: review lại đúng bảng này.**
+**This table must be reviewed before any video/demo/presentation is recorded.**

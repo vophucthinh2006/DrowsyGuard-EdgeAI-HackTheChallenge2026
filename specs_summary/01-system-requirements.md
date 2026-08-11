@@ -1,79 +1,89 @@
-# Tóm tắt 01 — System Requirements Specification
+# Summary of 01 — System Requirements Specification
 
-Nguồn: [specs/01-system-requirements.md](../specs/01-system-requirements.md)
+Source: [specs/01-system-requirements.md](../../specs/01-system-requirements.md)
 
-## Phạm vi
-- **Trong scope:** phát hiện trạng thái tài xế real-time on-device từ 1 camera; fusion 3 domain
-  → 4 mức cảnh báo; CAN link đến VCS; xe mô phỏng 4 động cơ phản ứng theo mức cảnh báo; cảnh báo
-  vật lý leo thang (âm thanh/đèn/rung); rig đo đạc.
-- **Ngoài scope:** không đụng powertrain/CAN xe thật, không claim đạt chuẩn ISO 26262/ASIL,
-  không cloud/fleet dashboard, không nhận diện danh tính tài xế.
-- Câu bắt buộc nói mỗi khi demo: *"đây là demonstrator nghiên cứu, xe là mô phỏng, chưa qualify
-  cho xe thật."*
+## Scope
+- **In scope:** real-time on-device driver-state estimation from a single camera; fusion of 3
+  domains → 4 alert levels; CAN link to the VCS; a 4-motor simulated vehicle that reacts to the
+  alert level; escalating physical alerts (audible/visual/haptic); the measurement rig.
+- **Out of scope:** no interface to a real vehicle powertrain/CAN, no claim of ISO 26262/ASIL
+  compliance, no cloud/fleet dashboard, no driver identification.
+- Mandatory statement at every demo: *"this is a research demonstrator, the vehicle is a
+  simulator, nothing here is qualified for a real road vehicle."*
 
-## Kiến trúc (SYS-AR)
-- Đúng 2 node thông minh (DMS, VCS) nối 1 đoạn CAN.
-- DMS làm toàn bộ vision/inference/fusion; VCS **không** xử lý ảnh, không cần biết cách tính ra
-  alert level — chỉ 1 điểm khớp nối: con số level.
-- Đường an toàn (CAN nhận → giới hạn tốc độ → safe-stop) chạy hoàn toàn trên MCU VCS, độc lập
-  với việc Linux có phản hồi hay không.
-- Không ảnh/video/landmark nào được rời khỏi DMS — chỉ metric tổng hợp qua CAN.
-- Hệ thống phải chạy được **hoàn toàn offline** (không Wi-Fi/cellular).
-- Mọi state cá nhân tài xế bị xoá khi tắt nguồn.
+## Architecture (SYS-AR)
+- Exactly 2 intelligent nodes (DMS, VCS) joined by one CAN segment.
+- The DMS does all vision/inference/fusion; the VCS does **no** image processing and doesn't
+  need to know how the alert level was derived — the level is the only coupling point.
+- The safety-critical path (CAN receive → speed limit → safe-stop) runs entirely on the VCS
+  MCU, independent of whether Linux is responsive.
+- No image/video/landmark data ever leaves the DMS — only aggregate metrics over CAN.
+- The system must work **fully offline** (no Wi-Fi/cellular required).
+- All per-driver state is discarded at power-off.
 
-## Chức năng chính (SYS-FR)
-- Camera ≥10 FPS; phát hiện landmark mặt + head pose; suy ra mắt/miệng/hiện diện mặt.
-- Mỗi detection có confidence score; dưới ngưỡng → coi là "không thấy", không phải "bằng chứng âm tính".
-- Hoạt động cả ban ngày (RGB) và tối (IR) — cờ `night_mode`.
-- Mất mặt quá lâu → `SENSOR_LOST`, báo như 1 **fault**, khác hẳn báo buồn ngủ.
-- 3 domain D1/D2/D3 → fusion → L0-L3. Không mức nào trên L0 được raise chỉ từ 1 frame — luôn cần dwell time.
-- Hạ mức có hysteresis (điều kiện hạ phải yếu hơn về thời gian so với điều kiện lên).
-- Có nút "tôi còn tỉnh" (ack) xoá L1/L2; **không thể** xoá D3 CRITICAL (tránh defeat device).
-- Leo thang đơn điệu L0→L1→L2→L3, trừ D3 CRITICAL được nhảy thẳng vào L3 từ bất kỳ đâu.
-- Đèn 3 màu hiển thị mức hiện tại (xanh/vàng/đỏ/đỏ nhấp nháy = fault).
-- VCS lái vi sai 2 kênh (trái/phải), giới hạn tốc độ theo alert level, L3 → safe-stop có ramp.
-- Sau safe-stop, xe ở `STOPPED` và **không tự resume** — cần operator re-arm tường minh.
-- Cả 2 node in banner boot (version, git SHA, timestamp); log mọi chuyển mức; log không chứa ảnh/PII.
+## Functional requirements (SYS-FR)
+- Camera ≥10 FPS; face-landmark detection + head pose; derives eye/mouth/face-presence states.
+- Every detection carries a confidence score; below the floor → treated as "not seen," not as
+  negative evidence.
+- Works in both daylight (RGB) and dark-cabin (IR) — flagged by `night_mode`.
+- Prolonged no-face → `SENSOR_LOST`, signalled as a **fault**, clearly distinct from any
+  drowsiness alarm.
+- 3 domains D1/D2/D3 → fusion → L0-L3. No level above L0 may be raised on a single frame — every
+  transition requires its dwell time.
+- De-escalation is hysteretic (the clearing condition must be weaker in time than the setting condition).
+- A driver acknowledgement ("I am awake") input clears L1/L2; it **cannot** clear D3 CRITICAL
+  (avoids being a defeat device).
+- Escalation is monotonic L0→L1→L2→L3, except D3 CRITICAL may jump directly to L3 from anywhere.
+- A three-colour indicator always shows the current level (green/amber/red/red-flashing = fault).
+- The VCS drives a two-channel differential drive, caps speed by alert level, and executes a
+  ramped safe-stop at L3.
+- After a safe-stop the vehicle stays `STOPPED` and **never auto-resumes** — requires explicit
+  operator re-arm.
+- Both nodes print a boot banner (version, git SHA, timestamp); every level transition is
+  logged; logs contain no images/PII.
 
-## Hiệu năng (SYS-PR) — các con số cần nhớ
-| Mục | Ngưỡng |
+## Performance requirements (SYS-PR) — numbers to remember
+| Item | Threshold |
 |---|---|
-| Latency end-to-end (P95) | ≤ **200 ms** (budget nội bộ 160ms, có 40ms margin) |
-| Frame-rate quantisation | tính riêng, không giấu vào latency |
-| Inference rate bền vững | ≥ **8 FPS** (mục tiêu 10) trong bất kỳ cửa sổ 60s |
-| Thermal throttle 30 phút | FPS phút 30 ≥ 80% FPS phút 1 |
-| CAN bus load | ≤ 5% ở 500 kbit/s |
+| End-to-end latency (P95) | ≤ **200 ms** (internal budget 160ms, 40ms margin) |
+| Frame-rate quantisation | reported separately, never hidden inside latency |
+| Sustained inference rate | ≥ **8 FPS** (target 10) over any 60s window |
+| Thermal throttle over 30 min | FPS at min 30 ≥ 80% of FPS at min 1 |
+| CAN bus load | ≤ 5% at 500 kbit/s |
 | VCS control loop | 100 Hz, jitter ≤ ±1 ms |
 | Safe-stop deceleration | 2.0s ± 0.1s |
-| DMS-AP RAM | ≤ 512 MB RSS; VCS free ≥20% RAM & flash |
+| DMS-AP memory | ≤ 512 MB RSS; VCS keeps ≥20% RAM & flash free |
 
-Bảng phân bổ budget latency (tổng 160ms, margin 40ms): capture+convert 25ms, pre-process 10ms,
-**inference 80ms** (phần lớn nhất), post+fusion 10ms, AP→RT handoff 10ms, CAN 5ms, VCS actuate 20ms.
+Latency budget breakdown (total 160ms, 40ms margin): capture+convert 25ms, pre-process 10ms,
+**inference 80ms** (the largest chunk), post-process+fusion 10ms, AP→RT handoff 10ms, CAN 5ms,
+VCS actuate 20ms.
 
 ## Interface & Safety (SYS-IR / SYS-SR)
-- CAN 2.0A, 11-bit ID, 500 kbit/s, sample point 87.5%, termination 120Ω 2 đầu.
-- Mọi frame định kỳ có seq counter 4-bit + CRC8; nhận sai → discard.
-- Mất CAN link phải phát hiện trong **300 ms**.
-- Cả 2 node 3.3V logic, không được nối 5V trực tiếp.
-- VCS khởi động luôn ở trạng thái disarm, cần lệnh arm tường minh.
-- Mất CAN input = fault, không bao giờ = "tài xế tỉnh táo". Hướng failsafe luôn là giảm tốc.
-- Watchdog phần cứng trên VCS.
-- Có **nút emergency-stop vật lý** ngắt trực tiếp motor driver, độc lập firmware.
-- Nguồn motor và nguồn logic cấp cầu chì riêng.
-- Âm lượng cảnh báo giới hạn ≤85 dB(A) @1m; L1 là tiếng nhẹ, không được làm tài xế giật mình.
-- **False-positive bị giới hạn cứng: ≤ 1 alert/giờ ở L1+ khi tài xế tỉnh táo** — đây là hard
-  requirement, không phải mong muốn.
+- CAN 2.0A, 11-bit IDs, 500 kbit/s, sample point 87.5%, 120Ω termination at both ends.
+- Every periodic frame carries a 4-bit sequence counter + CRC8; failing checks → discarded.
+- Loss of the CAN link must be detected within **300 ms**.
+- Both nodes run 3.3V logic; no 5V signal may be connected directly.
+- The VCS always powers up disarmed, requiring an explicit arm command.
+- Missing CAN input = a fault, never "the driver is alert." Failsafe direction is always toward
+  reduced speed.
+- A hardware watchdog on the VCS.
+- A **physical emergency-stop button** cuts the motor driver directly, independent of firmware.
+- Motor and logic supplies are separately fused.
+- Alert volume capped at ≤85 dB(A) @1m; L1 must be a soft tone that doesn't startle the driver.
+- **False-positive rate is hard-capped: ≤ 1 alert/hour at L1+ for an alert, awake driver** — a
+  hard requirement, not an aspiration.
 
-## Môi trường
-- Nhiệt độ hoạt động 0–45°C.
-- Chiếu sáng 5 lux (IR tối) đến 50,000 lux (nắng trực tiếp).
-- Hoạt động được với kính cận trong; **kính râm làm D3 UNAVAILABLE tường minh** (`model_degraded`),
-  không được âm thầm coi như vẫn đo được mắt.
-- Cold start đến khi có alert level đầu tiên trên CAN: ≤ 30s.
+## Environmental requirements
+- Operating temperature 0–45°C.
+- Illumination from 5 lux (IR-illuminated dark cabin) to 50,000 lux (direct sunlight).
+- Works with clear prescription glasses; **dark sunglasses make D3 explicitly UNAVAILABLE**
+  (`model_degraded`), never silently continuing as if eyes were still measurable.
+- Cold start to first published alert level: ≤ 30s.
 
-## Rủi ro/giả định lớn nhất
-- **ASM-01 (⚠️ chưa xác nhận):** STM32U585 trên UNO Q có FDCAN ra chân header hay không.
-  Đây là **rủi ro cao nhất hệ thống**. Nếu không → dùng SPI CAN controller (MCP2515-class),
-  tốn ~1 ngày bring-up, quyết định trong 24h sau khi có hardware.
-- ASM-02: chưa đo dòng stall thật của 4 motor TT.
-- ASM-03: ngưỡng lấy từ literature, chưa tune trên corpus riêng của team.
+## Biggest risks/assumptions
+- **ASM-01 (⚠️ unconfirmed):** whether the STM32U585 on the UNO Q exposes FDCAN on
+  header-reachable pins. This is the **single highest-risk item** in the system. If false → fall
+  back to an SPI CAN controller (MCP2515-class), ~1 day of bring-up, decision within 24h of
+  hardware arrival.
+- ASM-02: actual stall current of the 4 TT motors not yet measured.
+- ASM-03: thresholds are literature-derived, not yet tuned on the team's own corpus.

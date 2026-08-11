@@ -1,90 +1,93 @@
-# Tóm tắt 06 — Test Plan
+# Summary of 06 — Test Plan
 
-Nguồn: [specs/06-test-plan.md](../specs/06-test-plan.md)
+Source: [specs/06-test-plan.md](../../specs/06-test-plan.md)
 
-## Mục tiêu
-**Không phải** để chứng minh DrowsyGuard hoạt động, mà để tìm ra **nó ngừng hoạt động ở đâu**
-trước khi giám khảo tìm ra. 3 nguyên tắc:
-1. Mọi claim phải có **số + phương pháp** đo (không nói "phát hiện microsleep đáng tin cậy" mà
-   phải nói "TPR 0.96 (48/50 sự kiện), 0.7 báo giả/giờ, build X, run Y").
-2. Đo **độ chính xác** và **độ trễ** tách biệt — gộp chung che giấu cái nào đang tệ hơn.
-3. **Test đường lỗi ít nhất là kỹ như đường thành công** — rút cáp, che camera, sụt pin, kill
-   Linux side... đây là những test mà 1 build chưa qua thì chưa được coi là demo-ready.
+## Objective
+**Not** to prove DrowsyGuard works, but to find out **where it stops working** before a judge
+does. Three principles:
+1. Every claim needs a **number and a method** (never "detects microsleeps reliably" — instead
+   "TPR 0.96 (48/50 events), 0.7 false alarms/hour, build X, run Y").
+2. Measure **accuracy** and **latency** separately — merging them hides whichever one is worse.
+3. **Failure paths are tested at least as hard as success paths** — cable pulled, camera
+   covered, battery sagging, Linux killed — a build that hasn't passed these isn't demo-ready.
 
-## 5 cấp độ test
-| Cấp | Tên | Phạm vi | Chạy ở đâu | Gate |
+## 5 test levels
+| Level | Name | Scope | Where it runs | Gate |
 |---|---|---|---|---|
-| L1 | Unit | 1 module, không cần hardware | CI mỗi PR | Merge |
-| L2 | Corpus replay | Domain+fusion logic vs recording đã annotate | CI mỗi PR | Merge |
-| L3 | Node integration | 1 node, hardware thật, input mô phỏng | Bench, on-demand | Hằng ngày |
-| L4 | System integration | Cả 2 node, CAN thật, motor thật | Bench rig | Hằng ngày |
-| L5 | Acceptance | Kịch bản đầy đủ end-to-end | Demo rig | 1 lần trước demo |
+| L1 | Unit | One module, no hardware | CI, every PR | Merge |
+| L2 | Corpus replay | Domain+fusion logic vs. annotated recordings | CI, every PR | Merge |
+| L3 | Node integration | One node, real hardware, stimulated inputs | Bench, on demand | Daily |
+| L4 | System integration | Both nodes, real CAN, real motors | Bench rig | Daily |
+| L5 | Acceptance | Full scripted scenarios, end to end | Demo rig | Once, before demo |
 
-**L2 là test giá trị cao nhất dự án** — vì `domains/`/`fusion/` là pure function (DEV-042), 1
-bản ghi 30 phút đã annotate có thể replay qua đúng logic production trong <1 giây, không cần
-camera/board, deterministic. Đây là cơ chế duy nhất ngăn "tune đến khi demo chạy được" âm thầm
-phá false-alarm rate.
+**L2 is the highest-value test in the project** — because `domains/`/`fusion/` are pure
+functions (DEV-042), a 30-minute annotated recording replays through the exact production
+decision logic in under a second, deterministically, with no camera and no board. This is the
+mechanism that stops "tuned it until the demo worked" from silently destroying the false-alarm rate.
 
 ## Bench rig
-- Logic analyser 8 kênh đo mọi mốc thời gian (inference done, CAN TX/RX, actuator change,
-  control tick 100Hz, motor enable, CAN_H/L decode).
-- **Latency đo bằng logic analyser, không dùng software timestamp giữa 2 node** — 2 clock
-  không đồng bộ không đo được khoảng cách chéo node, scope thì đo được.
-- GPIO marker phải compile vào cả debug **và** release build (đo overhead 1 lần, ghi lại).
-- Mọi test có motor chạy trên **wheel stand** cho đến khi toàn bộ TC-SAF pass — 1 bug safe-stop
-  trên sàn nhà là 1 chiếc xe lao vào vật gì đó.
+- An 8-channel logic analyser measures every timing point (inference done, CAN TX/RX,
+  actuator change, 100Hz control tick, motor enable, CAN_H/L decode).
+- **Latency is measured with the logic analyser, not software timestamps across nodes** — two
+  unsynchronised clocks can't measure a cross-node interval, the scope can.
+- GPIO markers must be compiled into both debug **and** release builds (overhead measured once, recorded).
+- All motion testing on a **wheel stand** until all TC-SAF cases pass — a safe-stop bug on the
+  floor is a vehicle that drives into something.
 
-## Phương pháp kích thích (stimulus)
-| Phương pháp | Dùng cho | Lặp lại được? |
+## Stimulus methods
+| Method | Used for | Repeatable? |
 |---|---|---|
-| Corpus replay vào pipeline | Domain/fusion/threshold logic | Hoàn toàn deterministic |
-| Phát video lên màn hình cho camera | Toàn bộ optical path (exposure, IR, glare) | Lặp được trong dung sai ánh sáng |
-| Người thật, kịch bản trực tiếp | UX/acceptance check | **Không lặp được — không bao giờ dùng để ra số liệu công bố** |
-| Bơm frame CAN (`can_inject.py`) | Toàn bộ hành vi VCS, không cần camera | Hoàn toàn deterministic |
+| Corpus replay into the pipeline | Domain/fusion/threshold logic | Fully deterministic |
+| Monitor playback to the camera | Full optical path (exposure, IR, glare) | Repeatable within lighting tolerance |
+| Live human subject, scripted actions | UX/realism check, acceptance | **Not repeatable — never used to produce a quoted metric** |
+| CAN frame injection (`can_inject.py`) | All VCS behaviour, no camera needed | Fully deterministic |
 
-## Corpus (3 bộ, version-controlled qua git-lfs)
-| Corpus | Nội dung | Mục tiêu thời lượng | Mục đích |
+## Test corpora (3 sets, version-controlled via git-lfs)
+| Corpus | Content | Target duration | Purpose |
 |---|---|---|---|
-| **C-BASE** | Người tỉnh, hành vi bình thường (chớp mắt, nói, gương, uống nước...) | ≥60 phút | **Đo false-alarm** — corpus quyết định sản phẩm dùng được hay không |
-| **C-DROWSY** | Buồn ngủ diễn/thật (nhắm mắt lâu, microsleep, ngáp, gật đầu) | ≥30 phút | Đo TPR |
-| **C-ADVERSE** | Tối+IR, nắng chói, kính (trong/râm), che mặt, rung camera | ≥20 phút | Đo suy giảm & hành vi lỗi |
+| **C-BASE** | Alert subjects, normal behaviour (blinking, talking, mirror checks, drinking...) | ≥60 min | **False-alarm measurement** — decides if the product is usable |
+| **C-DROWSY** | Acted/genuine drowsiness (long closures, microsleeps, yawns, head nods) | ≥30 min | TPR measurement |
+| **C-ADVERSE** | Darkness+IR, glare, glasses (clear/sunglasses), face occluded, camera shake | ≥20 min | Degradation/fault behaviour |
 
-- Chia theo **subject** (không theo clip) thành tập tune và tập held-out — tránh tune/đánh giá
-  trên cùng khuôn mặt cho ra số vô nghĩa với người ngoài phòng.
-- Sự kiện mơ hồ (ngáp hay chỉ thở sâu?) phải có **2 người annotate độc lập**, báo cáo tỷ lệ
-  không đồng thuận — detector không thể chính xác hơn ground truth của chính nó.
+- Split **by subject** (not by clip) into tuning and held-out sets — otherwise tuning and
+  evaluating on the same faces produces a meaningless number.
+- Ambiguous events (a yawn vs. just a deep breath?) get **two independent annotators**,
+  disagreement rate reported — a detector can't be more accurate than its ground truth.
 
-## Tiêu chí chấp nhận (acceptance criteria) — bảng cốt lõi
-| # | Tiêu chí | Mục tiêu |
+## Acceptance criteria — the core table
+| # | Criterion | Target |
 |---|---|---|
 | AC-01 | Microsleep TPR (closure≥1.5s) | ≥ 0.95 |
-| AC-02 | False alarm L1+ trên C-BASE | ≤ 1.0/giờ |
+| AC-02 | False alarms L1+ on C-BASE | ≤ 1.0/hour |
 | AC-03 | Yawn F1 | ≥ 0.85 |
 | AC-04 | Distraction TPR | ≥ 0.90 |
 | AC-05 | Pipeline latency P95 | ≤ 200ms |
-| AC-06 | FPS bền vững | ≥ 8 |
-| AC-07 | Giữ FPS phút 30 vs phút 1 | ≥ 80% |
+| AC-06 | Sustained FPS | ≥ 8 |
+| AC-07 | FPS at min 30 vs. min 1 | ≥ 80% |
 | AC-08 | Control-loop jitter | ≤ ±1ms |
-| AC-09/10 | Timing `LINK_LOST`/safe-stop | 300ms / 1000ms (dung sai nhỏ) |
-| AC-11 | Thời lượng safe-stop | 2.0s±0.1s |
-| AC-12/13 | Trạng thái bất thường / bus-off trong 30 phút | 0 |
-| AC-14 | ⚠️ ASSUMPTION còn mở | 0 |
-| AC-15 | Áp suất âm | ≤85dB(A) |
+| AC-09/10 | `LINK_LOST`/safe-stop timing | 300ms / 1000ms (tight tolerance) |
+| AC-11 | Safe-stop duration | 2.0s±0.1s |
+| AC-12/13 | Unexpected states / bus-off in 30min | 0 |
+| AC-14 | Open ⚠️ ASSUMPTION items | 0 |
+| AC-15 | Sound pressure | ≤85dB(A) |
 
-- Nếu không đạt tiêu chí: **báo số thật** trong demo, không nắn tiêu chí cho khớp — 1 team nói
-  "P95 của chúng tôi là 240ms, trên mục tiêu 200ms, đây là lý do" đáng tin hơn team nói mục
-  tiêu như thể đó là kết quả đo.
+- If a criterion isn't met: **report the real number** in the demo, don't adjust the criterion —
+  "our P95 is 240ms, above our 200ms target, and here's why" is more credible than quoting a
+  target as if it were a measurement.
 
-## Entry/Exit criteria (rất thực dụng, dùng như checklist trước khi lên bench thật)
-- **Vào L4:** cả 2 node build sạch từ main, CAN bring-up checklist xong, CRC vector pass, xe trên giá đỡ bánh.
-- **Ra L4 / vào L5:** mọi TC-CAN/TC-SAF pass, chạy liên tục 30 phút không lỗi/bus-off, mọi
-  benchmark trong spec 08 đã điền số thật, open-items ở spec 04/05 rỗng.
-- **Ra L5 (demo-ready):** mọi acceptance criteria đạt (hoặc mỗi cái miss có số thật kèm giải
-  thích), diễn tập demo 2 lần không cần operator can thiệp, **có video backup** phòng hardware hỏng ngày demo.
+## Entry/Exit criteria (practical checklists before touching the real bench)
+- **Entry to L4:** both nodes build clean from main, CAN bring-up checklist complete, CRC
+  vectors pass, chassis on a wheel stand.
+- **Exit L4 / entry L5:** all TC-CAN/TC-SAF pass, 30-minute run with no unexpected state or
+  bus-off, all benchmark entries in spec 08 filled with real numbers, open-items registers empty.
+- **Exit L5 (demo-ready):** all acceptance criteria met (or each miss documented with its actual
+  number), demo rehearsed twice with no operator intervention, **a recorded backup video** exists
+  in case demo hardware fails.
 
-## Chính sách regression
-- Bug nào tìm thấy ở L3+ phải sinh ra test case mới ở **cấp thấp nhất** có thể bắt được nó —
-  nếu 1 bug ở bench đáng lẽ corpus replay bắt được, thì thiếu test L2 mới là defect thật sự.
-- Suite L1+L2 phải chạy **dưới 3 phút** trên mỗi PR — chậm hơn sẽ bị bỏ qua khi áp lực deadline,
-  đúng lúc cần nó nhất.
-- Người viết module **không phải** người duy nhất test nó ở L4 (tránh cùng 1 mental model gây ra bug lẫn bỏ sót bug).
+## Regression policy
+- Any defect found at L3+ results in a new test case at the **lowest** level that could have
+  caught it — a bug found on the bench that a corpus replay could have caught means an L2 gap,
+  and that gap is the real defect.
+- The L1+L2 suite must run **under 3 minutes** — a slower suite gets skipped under deadline pressure.
+- The author of a module is **not** the only person testing it at L4 (avoids the same mental
+  model that caused the bug also missing it in testing).

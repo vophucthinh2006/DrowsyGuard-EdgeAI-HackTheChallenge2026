@@ -1,76 +1,81 @@
-# Tóm tắt 04 — Interface Control Document (CAN)
+# Summary of 04 — Interface Control Document (CAN)
 
-Nguồn: [specs/04-interface-control-document.md](../specs/04-interface-control-document.md)
+Source: [specs/04-interface-control-document.md](../../specs/04-interface-control-document.md)
 
-## Vật lý bus
-- Classical CAN 2.0A (không dùng CAN FD dù cả 2 chip hỗ trợ — vì payload chỉ 8 byte, FD chỉ
-  thêm độ phức tạp bit-timing không cần thiết).
-- 500 kbit/s, sample point 87.5%, termination **120Ω mỗi đầu** (đo được 60Ω±5Ω khi tắt nguồn —
-  bus chỉ có 1 hoặc 3 điểm termination sẽ "có vẻ chạy được" ở khoảng cách ngắn rồi lỗi ngắt quãng).
-- 3.3V logic cả 2 phía. Bus ≤2m (bench), giới hạn lý thuyết 40m ở tốc độ này.
-- **VCS side đã xác nhận:** FlexCAN0, PORT1_10/11, transceiver **on-board TJA1057GTK/3Z** —
-  không cần linh kiện ngoài, đã build clean trong `vcs-mcxn947/`, chưa flash đo thật.
-- **DMS side vẫn ⚠️ ASSUMPTION:** FDCAN1 trên STM32U585 có ra chân header UNO Q không — chưa xác nhận.
+## Physical layer
+- Classical CAN 2.0A (not CAN FD, even though both chips support it — payload is only 8 bytes,
+  FD would just add bit-timing complexity for no benefit).
+- 500 kbit/s, sample point 87.5%, **120Ω termination at each end** (measures 60Ω±5Ω with power
+  off — a bus with 1 or 3 termination points "seems to work" at short range then fails intermittently).
+- 3.3V logic both sides. Bus ≤2m (bench), well inside the 40m theoretical limit at this rate.
+- **VCS side confirmed:** FlexCAN0, PORT1_10/11, **on-board TJA1057GTK/3Z transceiver** — no
+  external part needed, builds clean in `vcs-mcxn947/`, not yet flashed/measured.
+- **DMS side still ⚠️ ASSUMPTION:** whether FDCAN1 on the STM32U585 is reachable on the UNO Q's headers.
 
-## Bảng message (ID thấp = ưu tiên cao hơn khi arbitration)
-| ID | Tên | Hướng | DLC | Chu kỳ | Ghi chú |
+## Message catalogue (lower ID = higher priority in arbitration)
+| ID | Name | Direction | DLC | Cycle | Note |
 |---|---|---|---|---|---|
-| `0x080` | `EMERGENCY_STOP` | 2 chiều | 2 | event, ≤3 lần @10ms | Ưu tiên tuyệt đối |
-| `0x100` | `DMS_STATUS` | DMS→VCS | 8 | **100ms** | Message an toàn quan trọng nhất |
-| `0x101` | `DMS_METRICS` | DMS→VCS | 8 | 500ms | Chỉ để telemetry, không ảnh hưởng actuation |
-| `0x200` | `VCS_STATUS` | VCS→DMS | 8 | **100ms** | Phản hồi trạng thái xe |
+| `0x080` | `EMERGENCY_STOP` | both ways | 2 | event, ≤3× @10ms | Absolute priority |
+| `0x100` | `DMS_STATUS` | DMS→VCS | 8 | **100ms** | The most important safety message |
+| `0x101` | `DMS_METRICS` | DMS→VCS | 8 | 500ms | Telemetry only, doesn't influence actuation |
+| `0x200` | `VCS_STATUS` | VCS→DMS | 8 | **100ms** | Vehicle state feedback |
 | `0x201` | `VCS_EVENT` | VCS→DMS | 2 | event | Ack, re-arm, e-stop |
-| `0x700/0x701` | `DIAG_REQ/RESP` | | 8 | on request | Thấp nhất |
+| `0x700/0x701` | `DIAG_REQ/RESP` | | 8 | on request | Lowest priority |
 
-Tổng bus load ≈ **0.6%** của 500kbit/s (yêu cầu ≤5%) — dư địa rất lớn, đúng chủ đích: bus
-không bao giờ được là lý do 1 message an toàn bị trễ.
+Total bus load ≈ **0.6%** of 500kbit/s (requirement ≤5%) — huge headroom, deliberately: the bus
+must never be the reason a safety message is late.
 
-## `0x100 DMS_STATUS` — message an toàn duy nhất VCS thực sự dùng để hành động
-- Byte 0: `alert_level` (0-3) + `seq` 4-bit.
-- Byte 1: state của D1/D2/D3 (2-bit mỗi cái) + `d3_avail` (available/degraded/unavailable).
-- Byte 2: `perclos_pct` (255=invalid). Byte 3-4: `eye_closure_ms`. Byte 5: `face_conf_pct`.
-- Byte 6: các cờ (ack_refractory, sensor_lost, model_degraded, night_mode, calib_done,
+## `0x100 DMS_STATUS` — the only message the VCS actually acts on
+- Byte 0: `alert_level` (0-3) + 4-bit `seq`.
+- Byte 1: D1/D2/D3 states (2 bits each) + `d3_avail` (available/degraded/unavailable).
+- Byte 2: `perclos_pct` (255=invalid). Bytes 3-4: `eye_closure_ms`. Byte 5: `face_conf_pct`.
+- Byte 6: flags (ack_refractory, sensor_lost, model_degraded, night_mode, calib_done,
   pipeline_slow, ack_saturated).
-- Byte 7: CRC-8 SAE-J1850 trên byte 0-6.
-- **`alert_level` là trường DUY NHẤT VCS hành động theo** — mọi trường khác chỉ để hiển thị/log/chẩn đoán.
-- Validate thứ tự: DLC==8 → CRC khớp → seq đúng tiếp theo. Sai bất kỳ bước nào → **discard, KHÔNG
-  refresh timeout supervisor** (frame lỗi mà vẫn refresh watchdog còn nguy hiểm hơn mất frame —
-  nó che giấu 1 link đang chết bằng data cũ).
-- Cho đến khi `flag_calib_done=1`, VCS luôn ở trạng thái disarm bất kể `alert_level` là gì.
+- Byte 7: CRC-8 SAE-J1850 over bytes 0-6.
+- **`alert_level` is the ONLY field the VCS acts on** — every other field is for
+  indication/logging/diagnostics.
+- Validation order: DLC==8 → CRC matches → seq is correct next value. Any failure → **discard,
+  do NOT refresh the timeout supervisor** (a corrupted frame that still refreshes the watchdog
+  is worse than a lost frame — it masks a dying link with stale data).
+- Until `flag_calib_done=1`, the VCS remains disarmed regardless of `alert_level`.
 
-## Các message khác
-- `0x200 VCS_STATUS`: trạng thái xe (INIT/DISARMED/ARMED_IDLE/RUN/LIMITED/DECEL/STOPPED/
-  LINK_LOST/FAULT/ESTOP), speed cap, duty trái/phải + hướng, các cờ fault, indicator (dùng để
-  D1 suy giảm gaze-suppression khi xi-nhan bật).
-- `0x201 VCS_EVENT`: ack/re-arm/e-stop/indicator — gửi **3 lần cách nhau 10ms** cùng `event_seq`,
-  bên nhận de-dup theo seq (vì event không có chu kỳ lặp lại tự nhiên để tự phục hồi — mất 1
-  frame ACK nghĩa là tài xế bấm nút mà hệ thống lờ đi, chính là thứ phá huỷ lòng tin).
-- `0x080 EMERGENCY_STOP`: có byte `magic=0x5A` để tránh 1 frame lỗi ngẫu nhiên ở ID ưu tiên cao
-  nhất vô tình dừng xe. **Đây là đường tiện lợi, không phải đường an toàn chính thức** — an
-  toàn thực sự vẫn là công tắc vật lý ngắt nguồn motor (hoạt động cả khi firmware treo).
+## Other messages
+- `0x200 VCS_STATUS`: vehicle state (INIT/DISARMED/ARMED_IDLE/RUN/LIMITED/DECEL/STOPPED/
+  LINK_LOST/FAULT/ESTOP), speed cap, left/right duty + direction, fault flags, indicator (used
+  by D1's gaze-suppression when the turn signal is on).
+- `0x201 VCS_EVENT`: ack/re-arm/e-stop/indicator — sent **3 times at 10ms intervals** with the
+  same `event_seq`, receiver de-dups by seq (an event has no natural repetition to recover it —
+  losing a single ACK frame means the driver pressed the button and got ignored, exactly the
+  experience that destroys trust).
+- `0x080 EMERGENCY_STOP`: has a `magic=0x5A` byte so a spurious short frame at the highest-
+  priority ID can't accidentally stop the vehicle. **This is a convenience path, not the
+  official safety path** — real safety is the physical switch that cuts motor power (works even
+  if firmware is hung).
 
-## Timeout supervision — phần quan trọng nhất tài liệu này
-| Mốc | Giá trị | Hành động |
+## Timeout supervision — the most important section of this document
+| Milestone | Value | Action |
 |---|---|---|
-| Chu kỳ nominal | 100ms | |
-| Degrade (mất 3 chu kỳ) | **300ms** | Vào `LINK_LOST`, cap tốc độ 30%, cảnh báo amber |
-| Safe-stop | **1000ms** | Thực hiện safe-stop đầy đủ |
-| Phục hồi | 5 frame hợp lệ liên tiếp | Vào lại ở mức **mới nhận được**, không phải mức trước lỗi |
+| Nominal cycle | 100ms | |
+| Degrade (3 missed cycles) | **300ms** | Enter `LINK_LOST`, cap speed to 30%, amber warning |
+| Safe-stop | **1000ms** | Execute a full safe-stop |
+| Recovery | 5 consecutive valid frames | Re-enter at the **newly received** level, not the pre-fault level |
 
-- **Bug kinh điển cần tránh:** không bao giờ được coi "không có `DMS_STATUS`" = "alert_level=L0".
-  Giữ giá trị cũ mãi mãi làm 1 link chết trông y hệt 1 tài xế hoàn toàn tỉnh táo — lỗi này im
-  lặng, qua mọi test chức năng, và chỉ lộ ra khi dây rút giữa lúc demo.
-- Bus-off phải tự phục hồi và được đếm/log; 1 lần bus-off trong demo = demo không sạch.
+- **The classic bug to avoid:** absence of `DMS_STATUS` must never be interpreted as
+  `alert_level=L0`. Holding the last value forever makes a dead link look exactly like a
+  perfectly alert driver — silent, passes every functional test, and only shows up when the
+  cable falls out during the demo.
+- Bus-off must recover automatically and be counted/logged; a demo that experiences a bus-off is not clean.
 
-## Open items (rủi ro cần theo dõi)
-- **OI-04-01** (⚠️ cao nhất): FDCAN trên UNO Q có ra header không — quyết định trong 24h sau khi
-  có board. Fallback: SPI CAN (MCP2515-class, +1ms latency, +1 ngày bring-up) rồi UART framed.
-- OI-04-03/04/05: bit-timing, CRC-8 implementation, transceiver — **phía VCS đã resolve xong**,
-  phía DMS vẫn open (chưa có code CRC bên DMS để cross-verify).
+## Open items (risks to track)
+- **OI-04-01** (⚠️ highest risk): whether FDCAN on the UNO Q reaches the headers — decided
+  within 24h of hardware arrival. Fallback: SPI CAN (MCP2515-class, +1ms latency, +1 day
+  bring-up), then UART framed protocol.
+- OI-04-03/04/05: bit-timing, CRC-8 implementation, transceiver — **VCS side resolved**, DMS
+  side still open (no DMS-side CRC code yet to cross-verify).
 
-## Checklist bring-up (làm theo thứ tự, không nhảy cóc)
-Đo bus resistance 60Ω±5Ω (nguồn tắt) → soi CAN_H/L bằng scope → 1 node phát vào bus có
-termination không có node thứ 2 (xác nhận không có ACK là đúng) → đo bit time = 2.00µs±1% →
-2 node cùng bus, error counter =0 trong 60s → CRC test vector khớp cả 2 build → dùng
-`can_inject.py` lái VCS qua mọi alert_level không cần DMS → rút cáp giữa chừng, xác nhận
-`LINK_LOST` ở 300ms và safe stop ở 1000ms bằng scope.
+## Bring-up checklist (do in order, don't skip ahead)
+Measure bus resistance 60Ω±5Ω with power off → scope CAN_H/L → transmit from 1 node into a
+terminated bus with no second node (confirm no ACK is expected) → measure bit time = 2.00µs±1%
+→ both nodes on bus, error counters at 0 for 60s → CRC test vector matches both builds → drive
+the VCS through every level with `can_inject.py`, no DMS attached → unplug the bus mid-run,
+confirm `LINK_LOST` at 300ms and safe-stop at 1000ms with a scope.
