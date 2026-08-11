@@ -20,7 +20,7 @@ MODEL_INPUT_SIZE = (64, 64)  # Input tensor size for Tiny_EyeCNN / Tiny_YawnCNN 
 
 # Model file paths
 BLAZE_FACE_PATH = Path("models/blaze_face_short_range.tflite")
-EYE_CNN_PATH = Path("models/tiny_eyecnn_v2_float32.tflite")
+EYE_CNN_PATH = Path("models/tiny_eyecnn_v3_float32.tflite")
 YAWN_CNN_PATH = Path("models/tiny_mouthcnn_v1_float32.tflite")
 
 
