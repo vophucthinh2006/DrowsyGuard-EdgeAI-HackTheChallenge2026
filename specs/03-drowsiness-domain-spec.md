@@ -1,7 +1,7 @@
 # 03 — Drowsiness Domain Specification
 
 **Document:** DG-SPEC-03 · Rev 0.1 · 2026-08-10 · DRAFT
-**Applies to:** `dms-ap/src/drowsyguard/domains/` and `fusion/`
+**Applies to:** `dms-ap/app/python/drowsyguard/domains/` and `fusion/`
 **Normative:** every table marked **NORMATIVE** is machine-checked against
 `config/thresholds.yaml` by CI (see [02 §6](02-development-standards.md#6-configuration-and-the-threshold-single-source-rule))
 
@@ -149,7 +149,7 @@ reported** — reporting a distraction detection rate without it overstates the 
 
 ### 4.1 What is measured
 
-Mouth-open state per frame, from the YOLO `yawn` class corroborated by a Mouth Aspect Ratio (MAR)
+Mouth-open state per frame, from landmark-based mouth aperture estimation corroborated by a Mouth Aspect Ratio (MAR)
 computed from mouth landmarks. A **yawn event** is a mouth-open episode long enough to be a yawn
 rather than speech.
 

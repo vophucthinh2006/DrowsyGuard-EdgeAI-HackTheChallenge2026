@@ -1,0 +1,122 @@
+# DrowsyGuard DMS-AP — threshold single source of truth.
+#
+# specs/02-development-standards.md DEV-050: this file is the ONLY place any
+# domain/fusion threshold is written. specs/03-drowsiness-domain-spec.md §8
+# is the normative table this mirrors — every value here SHALL equal the
+# value there (DEV-051 wants a CI check that asserts that automatically;
+# tools/check_thresholds.py does not exist yet, see dms-ap/README.md).
+#
+# Every entry carries a `rationale` per DEV-052: a number with no reason
+# behind it cannot be defended to a judge and cannot be safely changed by a
+# teammate. The rationale text below is deliberately terse — full reasoning
+# with citations lives in specs/03-drowsiness-domain-spec.md §3/§4/§5, this
+# is a pointer back to it, not a restatement.
+
+d1_distraction:
+  yaw_limit_deg:
+    value: 30
+    rationale: "Head-turn threshold for off-road detection. See spec 03 §3.2/3.3."
+  pitch_down_limit_deg:
+    value: 20
+    rationale: "Head/eyes-down threshold for off-road detection. See spec 03 §3.2/3.3."
+  glance_min_ms:
+    value: 600
+    rationale: "Noise floor above normal mirror-check/instrument-glance duration (~300-500 ms). See spec 03 §3.3."
+  active_dwell_ms:
+    value: 2000
+    rationale: "NHTSA 2 s single-glance criterion; VTTI 100-Car: >2 s off-road correlates with ~2x crash risk. See spec 03 §3.3 / R2 / R3."
+  severe_cum_ms:
+    value: 6000
+    rationale: "Cumulative off-road within the 12 s window (R3, NHTSA 12 s total-task-time budget). See spec 03 §3.3."
+  cum_window_ms:
+    value: 12000
+    rationale: "Window over which severe_cum_ms is accumulated. See spec 03 §3.2/3.3."
+  clear_dwell_ms:
+    value: 3000
+    rationale: "Asymmetric de-escalation dwell -- harder to leave a warning than to enter it. See spec 03 §3.3."
+  indicator_suppress_ms:
+    value: 3000
+    rationale: "Suppresses the D1 yaw check in the indicated direction after a simulated turn signal, so a correct shoulder check isn't penalised. See spec 03 §3.3/3.4."
+
+d2_yawn:
+  mar_open:
+    value: 0.60
+    rationale: >
+      Mouth Aspect Ratio threshold for 'mouth open', per spec 03 §4.2. NOT
+      currently applied: the implemented prototype (inference/blazeface_cnn_backend.py)
+      classifies mouth-open state with a learned CNN on the mouth crop
+      (tiny_mouthcnn_v1), not landmark-geometry MAR -- there is no MAR value
+      to threshold yet. Retained here for a future landmark-based
+      reimplementation; see the note in domains/d2_yawn.py.
+  yawn_min_ms:
+    value: 1500
+    rationale: "Gate above conversational-speech mouth-open bursts (~150-250 ms) and well below a real yawn (~4-6 s). See spec 03 §4.3 / R6."
+  yawn_max_ms:
+    value: 12000
+    rationale: "Sanity ceiling -- longer than any plausible yawn indicates a stuck detection, discarded and flagged model_degraded. See spec 03 §4.3/4.4."
+  window_ms:
+    value: 120000
+    rationale: "2-minute rolling window for yawn-event counting. See spec 03 §4.2."
+  active_count:
+    value: 2
+    rationale: "A single yawn is normal (many causes); 2 in the window is ~10x baseline yawn frequency. See spec 03 §4.3."
+  severe_count:
+    value: 3
+    rationale: "See spec 03 §4.2/4.4."
+  severe_single_ms:
+    value: 5000
+    rationale: "A single unusually long yawn (>=this, with active_count already reached) also raises SEVERE. See spec 03 §4.2/4.4."
+
+d3_eye_closure:
+  active_dwell_ms:
+    value: 800
+    rationale: "~2x the upper bound of normal blink duration (100-400 ms) -- outside the normal blink distribution for any driver, no per-person tuning needed. See spec 03 §5.1 / R4."
+  severe_dwell_ms:
+    value: 1500
+    rationale: "Conventional microsleep boundary (~1-2 s sustained closure). At 90 km/h this is 37.5 m travelled blind. See spec 03 §5.1 / R5."
+  critical_dwell_ms:
+    value: 3000
+    rationale: "Assume-no-driver boundary; at 90 km/h this is 75 m travelled blind (headline pitch number -- verify the speed/distance pair before quoting, see specs/08-benchmark-log.md §12). See spec 03 §5.1."
+  clear_dwell_ms:
+    value: 1000
+    rationale: "See spec 03 §5.1."
+  eye_conf_min:
+    value: 0.50
+    rationale: "Below this, a frame HOLDS the accumulator rather than resetting or incrementing it (DOM-D3-001) -- prevents both a noisy frame cancelling a real closure and a camera obstruction fabricating one. See spec 03 §5.1."
+  perclos_window_ms:
+    value: 60000
+    rationale: "60 s rolling window for the P80 PERCLOS statistic -- long enough for a stable estimate (480-600 samples at 8-10 FPS), short enough to track changing driver state. See spec 03 §5.2 / R1."
+  perclos_p:
+    value: 0.80
+    rationale: "P80 definition: eyes counted 'closed' at >=80% closure. See spec 03 §5.2 / R1."
+  perclos_min_samples:
+    value: 300
+    rationale: "Below this the PERCLOS value is reported INVALID rather than trusted. See spec 03 §5.2/5.3 (DOM-D3-003)."
+  perclos_active:
+    value: 0.08
+    rationale: "Below this, closure fraction is dominated by ordinary blinking. See spec 03 §5.2 / R1."
+  perclos_severe:
+    value: 0.15
+    rationale: "Associated with measurably degraded lane-keeping and reaction time in the literature. See spec 03 §5.2 / R1."
+  perclos_hyst:
+    value: 0.02
+    rationale: "De-escalation margin below the threshold before PERCLOS is allowed to drop a level. See spec 03 §5.3 (DOM-D3-004)."
+
+fusion:
+  l2_escalate_ms:
+    value: 10000
+    rationale: "L2 sustained with no ack for this long assumes the driver cannot respond -> L3. See spec 03 §6.1/6.3."
+  level_clear_ms:
+    value: 5000
+    rationale: "All domains must be IDLE continuously for this long before stepping down one level. See spec 03 §6.1/6.5 (DOM-FUS-005)."
+  ack_refractory_ms:
+    value: 60000
+    rationale: "L1 re-entry is suppressed for this long after an ack; L2 is never suppressed. See spec 03 §6.1/6.4 (DOM-FUS-001)."
+  ack_max_consecutive:
+    value: 3
+    rationale: "After this many acks in a 10-minute period with no sustained L0, the refractory is disabled (ack_saturated) -- an unlimited snooze converts a safety device into a nuisance-silencer. See spec 03 §6.1/6.4 (DOM-FUS-003)."
+
+fault:
+  sensor_lost_ms:
+    value: 3000
+    rationale: "No face detected for this long -> SENSOR_LOST, a distinct fault state, never silently mapped to L0. See spec 03 §7."

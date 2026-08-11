@@ -1,0 +1,11 @@
+name: DrowsyGuard DMS
+description: "On-device driver drowsiness detection (BlazeFace + eye/mouth CNN), fused into an L0-L3 alert level and sent to the VCS over the Bridge -> FDCAN1 -> CAN link (specs/03, specs/04)."
+icon: 😴
+version: "0.1.0"
+
+# Schema confirmed against a real App Lab app (ShawnHymel/arduino_uno_q_blink_cli,
+# app.yaml + python/main.py + sketch/sketch.ino + sketch/sketch.yaml on GitHub) --
+# not guessed. See ../README.md "App Lab" section for the verification trail.
+
+ports: []
+bricks: []

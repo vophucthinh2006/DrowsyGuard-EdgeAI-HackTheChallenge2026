@@ -1,6 +1,6 @@
 # 02 — Development & Deployment Standards
 
-**Document:** DG-SPEC-02 · Rev 0.1 · 2026-08-10 · DRAFT
+**Document:** DG-SPEC-02 · Rev 0.3 · 2026-08-11 · DRAFT
 **Applies to:** every person and every commit on the DrowsyGuard repository
 
 ---
@@ -25,20 +25,28 @@ layout on both sides at once.
 ```
 drowsyguard/
 ├── specs/                     # this specification set — the contract
-├── dms-ap/                    # QRB2210, Linux, Python 3.11
-│   ├── src/drowsyguard/
-│   │   ├── capture/           # camera abstraction
-│   │   ├── inference/         # model runner (backend-swappable)
-│   │   ├── domains/           # d1_distraction.py d2_yawn.py d3_eyeclosure.py
-│   │   ├── fusion/            # alert ladder state machine
-│   │   ├── link/              # AP↔RT transport
-│   │   └── telemetry/         # logging, metrics
-│   ├── config/thresholds.yaml # SINGLE source of every tunable number
-│   ├── models/                # .tflite / .dlc — tracked with git-lfs
-│   ├── tests/
-│   └── pyproject.toml
-├── dms-rt/                    # STM32U585 firmware
-│   ├── src/  inc/  build.sh
+├── dms-ap/                    # QRB2210, Linux, Python 3.13 on-device (App Lab's base image)
+│   ├── app/                     # THE deployable unit — everything App Lab syncs to the device
+│   │   ├── app.yaml               # App Lab manifest (name, version, bricks, ports)
+│   │   ├── python/                 # runs on the MPU (QRB2210/Linux)
+│   │   │   ├── main.py               # App Lab entry point (App.run(user_loop=...))
+│   │   │   ├── requirements.txt
+│   │   │   ├── config/thresholds.yaml # SINGLE source of every tunable number
+│   │   │   ├── models/                # .tflite — deploys with the app
+│   │   │   └── drowsyguard/            # the actual package
+│   │   │       ├── capture/           # camera abstraction
+│   │   │       ├── inference/         # model runner (backend-swappable)
+│   │   │       ├── domains/           # d1_distraction.py d2_yawn.py d3_eyeclosure.py
+│   │   │       ├── fusion/            # alert ladder state machine
+│   │   │       ├── link/              # AP↔RT transport (RouterBridge) + CAN ICD codec
+│   │   │       └── telemetry/         # logging, metrics
+│   │   └── sketch/                  # runs on the MCU (STM32U585) — this IS "DMS-RT",
+│   │                                   not a separate top-level project (see below)
+│   │       ├── sketch.ino
+│   │       └── sketch.yaml           # Arduino CLI profile, auto-managed
+│   ├── prototypes/             # reference material, not deployed, not imported by app/
+│   ├── tests/                  # unit tests, PYTHONPATH=app/python
+│   └── pyproject.toml          # local dev/test packaging only — not what ships to the device
 ├── vcs-mcxn947/               # FRDM-MCXN947 firmware (MCUXpresso SDK, out-of-tree)
 │   ├── src/
 │   │   ├── can_rx.c           # ICD decode + timeout supervision
@@ -55,6 +63,33 @@ drowsyguard/
 ├── tests/                     # cross-node integration + HIL
 └── docs/benchmarks/           # raw measurement artefacts referenced by spec 08
 ```
+
+**Revision note (Rev 0.2):** the original version of this layout put DMS-RT at a separate
+top-level `dms-rt/` (implying its own build.sh, mirroring `vcs-mcxn947/`). That assumption did not
+survive contact with the actual Arduino UNO Q platform: App Lab requires one app folder
+(`dms-ap/app/`) containing *both* the Python (MPU) and the sketch (MCU) halves together, tied by
+one `app.yaml`, deployed as one unit — there is no separate top-level firmware project for the
+UNO Q's own microcontroller the way there is for the external `vcs-mcxn947/` board. `dms-ap/app/sketch/`
+**is** DMS-RT. Likewise `dms-ap/src/` became `dms-ap/app/python/` (App Lab's required folder
+name, not a free choice), and `config/`/`models/` moved inside `app/python/` because App Lab only
+deploys the contents of `app/` to the device — anything DMS-AP needs at runtime has to live there,
+not as a sibling directory. See `dms-ap/README.md` "App Lab" section for the verification trail
+behind this structure (it was confirmed against a real published App Lab app on GitHub, not
+guessed) and DEV-092: this is exactly "reality disagreed with the spec, update the spec in the
+same change" applied to this document itself.
+
+**Revision note (Rev 0.3):** this document originally stated `dms-ap/` runs **Python 3.11** —
+carried over from the dev/bench `pyproject.toml` pin, never checked against the real device. The
+real App Lab base image (`ghcr.io/arduino/app-bricks/python-apps-base:0.10.1`) runs **CPython
+3.13**. This mattered in practice: `tflite-runtime` (PyPI, last release 2.14.0) ships wheels only
+up to `cp311`, so pinning it unconditionally in `app/python/requirements.txt` made `uv`'s resolver
+fail the *entire* install on-device (uv resolves the file as one solve, not package-by-package) —
+including `mediapipe`, which has nothing to do with tflite-runtime and would have installed fine on
+its own. Fixed with `python_version` markers in `requirements.txt` and `pyproject.toml` so
+`tflite-runtime` is only requested where a wheel exists and `tensorflow` is pulled in otherwise —
+which `inference/blazeface_cnn_backend.py`'s existing `try: tflite_runtime except ImportError:
+tensorflow.lite` fallback already expected, it just never got the chance to run while the install
+itself was failing. DEV-092 applies here too.
 
 **DEV-002** — `shared/icd/icd.yaml` SHALL be the only place message layouts are written. The C
 header, the Python module and the `.dbc` SHALL be **generated** from it by `generate.py`.
@@ -96,7 +131,7 @@ requirement ID in a `Refs:` trailer. This is what makes the traceability matrix 
 **DEV-014** — Changes touching any of the following SHALL require **two** approvals, one of whom
 did not write the code:
 - `vcs-mcxn947/src/safety.c`, `can_rx.c` (failsafe and timeout paths)
-- `dms-ap/src/drowsyguard/fusion/` (the alert ladder)
+- `dms-ap/app/python/drowsyguard/fusion/` (the alert ladder)
 - `shared/icd/` (the interface)
 - any threshold in `config/thresholds.yaml`
 
@@ -186,7 +221,7 @@ not found.
 in `pyproject.toml`. Both run in CI and in the pre-commit hook.
 
 **DEV-041** — Type hints SHALL be present on every public function signature. `mypy --strict` on
-`src/drowsyguard/domains/` and `src/drowsyguard/fusion/` — the two packages where a type confusion
+`app/python/drowsyguard/domains/` and `app/python/drowsyguard/fusion/` — the two packages where a type confusion
 becomes a wrong alert.
 
 **DEV-042** — The fusion and domain modules SHALL be **pure**: they take timestamped observations
@@ -380,3 +415,5 @@ pull request** as the discovery. Do not leave a known-false number in a document
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 0.1 | 2026-08-10 | ML_IoT_Love50 | Initial baseline |
+| 0.2 | 2026-08-10 | ML_IoT_Love50 | §2 layout: DMS-RT is `dms-ap/app/sketch/`, not a separate top-level `dms-rt/` (DEV-092) |
+| 0.3 | 2026-08-11 | ML_IoT_Love50 | §2 layout: `dms-ap/` runs Python 3.13 on-device, not 3.11 — fixes `tflite-runtime` install failure (DEV-092) |
