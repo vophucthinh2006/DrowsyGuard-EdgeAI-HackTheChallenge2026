@@ -86,26 +86,86 @@ sequenceDiagram
 
 ## 4. Message definitions
 
-- `can_signal` — periodic message containing decoded signal values.
+WebSocket server streams three standardized payload schemas (`ws://<arduino_ip>:8888`):
+
+### 4.1 `camera_frame` — Live Video, Face Mesh & Bounding Boxes (Page 2)
 
 ```json
 {
-  "type": "can_signal",
-  "ts": 1680000000.123,
-  "signals": { "vehicle.speed_kmh": 99.0, "vehicle.rpm": 2500 }
+  "type": "camera_frame",
+  "ts": 1723362945.123,
+  "frame_jpeg": "data:image/jpeg;base64,...",
+  "image_width": 640,
+  "image_height": 480,
+  "fps": 10.2,
+  "inference_ms": 78,
+  "face_detected": true,
+  "face_confidence": 0.94,
+  "bounding_boxes": {
+    "face": { "x": 100, "y": 60, "width": 180, "height": 220 },
+    "left_eye": { "x": 120, "y": 95, "width": 45, "height": 25, "closed": false, "ear": 0.32 },
+    "right_eye": { "x": 210, "y": 97, "width": 45, "height": 25, "closed": false, "ear": 0.30 },
+    "mouth": { "x": 155, "y": 180, "width": 60, "height": 40, "yawning": false, "mar": 0.22 }
+  },
+  "head_pose": { "pitch": 2.5, "yaw": -1.2, "roll": 0.4 },
+  "landmarks": [ { "x": 0.45, "y": 0.32, "z": -0.01 } ]
 }
 ```
 
-- `uno_alert` — high-priority event originating from UNO Q.
+### 4.2 `driver_status` — Drowsiness Fusion & Domain Metrics (Page 1)
 
 ```json
 {
-  "type": "uno_alert",
-  "ts": 1680000001.456,
-  "code": "DROWSY_L2",
-  "level": 2,
-  "message": "Driver drowsy - high",
-  "actions": ["buzzer","vibrate","fan"]
+  "type": "driver_status",
+  "ts": 1723362945.123,
+  "seq": 42,
+  "alert_level": 2,
+  "alert_name": "DROWSY_L2",
+  "d1_state": "ACTIVE",
+  "d2_state": "IDLE",
+  "d3_state": "SEVERE",
+  "d3_available": "AVAILABLE",
+  "perclos_pct": 14,
+  "perclos_threshold_severe": 15,
+  "eye_closure_ms": 1650,
+  "eye_closure_threshold_critical": 3000,
+  "yawn_count": 1,
+  "yawn_threshold_severe": 3,
+  "eor_cum_ms": 2200,
+  "eor_threshold_severe": 6000,
+  "face_conf_pct": 92,
+  "sensor_lost_duration_ms": 0,
+  "flags": {
+    "ack_refractory": false,
+    "sensor_lost": false,
+    "model_degraded": false,
+    "night_mode": false,
+    "calib_done": true,
+    "ack_saturated": false,
+    "pipeline_slow": false
+  }
+}
+```
+
+### 4.3 `vehicle_status` — Vehicle Dynamics & Actuators (Page 1)
+
+```json
+{
+  "type": "vehicle_status",
+  "ts": 1723362945.123,
+  "vehicle_state": "RUN",
+  "speed_kmh": 68.5,
+  "speed_cap_pct": 50,
+  "rpm": 2450,
+  "odometer_km": 1284.2,
+  "duty_left_pct": 50,
+  "duty_right_pct": 50,
+  "battery_voltage_v": 7.4,
+  "logic_supply_v": 5.0,
+  "motor_current_a": 0.85,
+  "indicators": { "turn_left": false, "turn_right": false, "hazard": false, "headlights": true, "seatbelt": true },
+  "actuators": { "buzzer_active": true, "buzzer_freq_hz": 2800, "vibration_active": true, "fan_relay_active": true, "status_led": "RED" },
+  "faults": { "driver_fault": false, "watchdog_reset": false, "can_timeout": false, "undervoltage": false, "estop_active": false }
 }
 ```
 

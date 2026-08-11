@@ -1,0 +1,47 @@
+# DrowsyGuard UI Signal Mapping Configuration
+# Derived from shared/icd/icd.yaml
+
+server:
+  host: "0.0.0.0"
+  port: 8888
+  protocol: "websocket"
+  format: "msgpack" # msgpack or json
+
+signals:
+  speed_kmh:
+    can_id: 0x200
+    name: "Vehicle Speed"
+    unit: "km/h"
+    min: 0
+    max: 120
+
+  rpm:
+    can_id: 0x200
+    name: "Engine RPM"
+    unit: "RPM"
+    min: 0
+    max: 6000
+
+  odometer_km:
+    can_id: 0x200
+    name: "Odometer"
+    unit: "km"
+
+  alert_level:
+    can_id: 0x100
+    name: "DMS Alert Level"
+    levels:
+      0: "L0_NORMAL"
+      1: "L1_EARLY"
+      2: "L2_DROWSY"
+      3: "L3_DANGER"
+
+  perclos_pct:
+    can_id: 0x100
+    name: "PERCLOS Percentage"
+    unit: "%"
+
+  eye_closure_ms:
+    can_id: 0x100
+    name: "Continuous Eye Closure"
+    unit: "ms"

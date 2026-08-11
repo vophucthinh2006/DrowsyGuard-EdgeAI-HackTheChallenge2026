@@ -1,0 +1,12 @@
+# Node.js & Vite build outputs
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

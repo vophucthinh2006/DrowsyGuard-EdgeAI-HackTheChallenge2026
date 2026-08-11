@@ -72,6 +72,15 @@ Legend: 🟢 done for now · 🟡 in progress / partially blocked · 🔴 not st
 
 ## 3. Log
 
+### 2026-08-11 — Dashboard UI built (React + Vite + Canvas 2D) & .gitignore updated
+**Who:** Tang Phon Thinh / MLIoT_Love50
+- Designed and built the 2-Page Cockpit Dashboard application (`ui/`): Vite + React + TypeScript + Glassmorphism CSS.
+- Page 1 (`/dashboard`): Canvas 2D Speedometer & RPM Gauges, Vehicle indicators, Driver Risk assessment card, Developer Panel with CSV export.
+- Page 2 (`/camera`): Full-size Live Video Canvas, Bounding Box overlays around Face, Eyes, Mouth, and **"CẢNH BÁO: KHÔNG TÌM THẤY KHUÔN MẶT"** warning banner.
+- Defined and updated WebSocket Ethernet protocols in `specs/09-ui-dashboard-spec.md` (`camera_frame`, `driver_status`, `vehicle_status`).
+- Verified TypeScript build clean (`npm run build` passed in 1.03s with 0 errors).
+- Expanded root `.gitignore` and `ui/.gitignore` to ignore build outputs (`dist/`, `node_modules/`, `build/`, `__pycache__`, OS & IDE files).
+
 ### 2026-08-10 — dms-ap restructured into a real Arduino App Lab app
 **Who:** Nguyen Hoang Trieu (+ Claude)
 - Confirmed the previous `dms-ap/src/` layout would not load into Arduino App Lab at all — wrong

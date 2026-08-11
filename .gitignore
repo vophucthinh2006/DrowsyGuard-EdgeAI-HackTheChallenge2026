@@ -1,2 +1,72 @@
+# ==========================================
+# DrowsyGuard Monorepo .gitignore
+# ==========================================
+
+# --- Node.js / React / Vite (ui/) ---
+node_modules/
+ui/node_modules/
+dist/
+ui/dist/
+.vite/
+ui/.vite/
+package-lock.json.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Python / Environment / Caches ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# --- C / C++ / Embedded MCU (vcs-mcxn947/ & CMake) ---
+build/
+vcs-mcxn947/build/
+*.elf
+*.bin
+*.hex
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+CMakeCache.txt
+CMakeFiles/
+
+# --- IDEs & Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.cproject
+.settings/
+
+# --- Operating System Files ---
+.DS_Store
+.DS_Store?
+._*
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# --- Temporary & Compressed Files ---
 *.zip
+*.tar.gz
 *.rar
+*.7z
+*.tmp
+*.bak
+*.log
