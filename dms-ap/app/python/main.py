@@ -316,12 +316,15 @@ def run_app_lab() -> None:
 
 
 def main() -> None:
-    try:
-        import arduino.app_utils  # noqa: F401
+    # Commented out Arduino App Lab entry point for local PC testing:
+    # try:
+    #     import arduino.app_utils  # noqa: F401
+    #     run_app_lab()
+    # except ImportError:
+    #     run_bench_mode()
 
-        run_app_lab()
-    except ImportError:
-        run_bench_mode()
+    # Always run in bench/test mode on PC
+    run_bench_mode()
 
 
 if __name__ == "__main__":

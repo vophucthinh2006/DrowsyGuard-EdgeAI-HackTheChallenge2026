@@ -24,7 +24,7 @@ class LogLevel(Enum):
     ERROR = "ERROR"
 
 
-def log(level: LogLevel, module: str, event: str, **fields: object) -> None:
+def log(level: LogLevel, module: str, event: str, /, **fields: object) -> None:
     timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
     kv = " ".join(f"{k}={v}" for k, v in fields.items())
     line = f"{timestamp} {level.value} {module} event={event}"
@@ -33,17 +33,17 @@ def log(level: LogLevel, module: str, event: str, **fields: object) -> None:
     print(line, file=sys.stderr, flush=True)
 
 
-def debug(module: str, event: str, **fields: object) -> None:
+def debug(module: str, event: str, /, **fields: object) -> None:
     log(LogLevel.DEBUG, module, event, **fields)
 
 
-def info(module: str, event: str, **fields: object) -> None:
+def info(module: str, event: str, /, **fields: object) -> None:
     log(LogLevel.INFO, module, event, **fields)
 
 
-def warn(module: str, event: str, **fields: object) -> None:
+def warn(module: str, event: str, /, **fields: object) -> None:
     log(LogLevel.WARN, module, event, **fields)
 
 
-def error(module: str, event: str, **fields: object) -> None:
+def error(module: str, event: str, /, **fields: object) -> None:
     log(LogLevel.ERROR, module, event, **fields)

@@ -1,2 +1,55 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Testing & Linting
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Build & Distribution artifacts
+build/
+dist/
+*.egg-info/
+
+# Embedded C/C++ Build Artifacts (MCXN947 / STM32 / CMake / Zephyr)
+_build/
+CMakeCache.txt
+CMakeFiles/
+*.elf
+*.bin
+*.hex
+*.map
+*.o
+*.obj
+*.d
+
+# Environment & Logs
+*.log
+.agent/
+
+# Archives & Large Compressed Files
 *.zip
 *.rar
+*.7z
+*.tar.gz
+
+# IDE & Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific files
+.DS_Store
+Thumbs.db

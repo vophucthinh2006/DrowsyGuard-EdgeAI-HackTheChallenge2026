@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DrowsyGuard EdgeAI - WebSocket Camera Test Suite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: hsl(230, 25%, 8%);
+            --bg-surface: hsla(230, 25%, 12%, 0.7);
+            --bg-card: hsla(230, 25%, 15%, 0.6);
+            --border-color: hsla(230, 25%, 25%, 0.4);
+            
+            --primary: hsl(185, 100%, 48%);
+            --primary-glow: hsla(185, 100%, 48%, 0.35);
+            --secondary: hsl(265, 100%, 65%);
+            --secondary-glow: hsla(265, 100%, 65%, 0.3);
+            
+            --success: hsl(142, 70%, 45%);
+            --success-glow: hsla(142, 70%, 45%, 0.3);
+            --warning: hsl(38, 95%, 55%);
+            --warning-glow: hsla(38, 95%, 55%, 0.3);
+            --error: hsl(355, 85%, 55%);
+            --error-glow: hsla(355, 85%, 55%, 0.3);
+            
+            --text-main: hsl(0, 0%, 95%);
+            --text-muted: hsl(230, 15%, 70%);
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-body: 'Outfit', sans-serif;
+            
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            background-image: 
+                radial-gradient(circle at 10% 20%, hsla(265, 100%, 15%, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, hsla(185, 100%, 15%, 0.15) 0%, transparent 40%);
+            color: var(--text-main);
+            font-family: var(--font-body);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 24px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            background: hsla(230, 25%, 6%, 0.5);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-family: var(--font-display);
+            font-size: 20px;
+            box-shadow: 0 0 20px var(--primary-glow);
+            color: var(--bg-base);
+        }
+
+        h1 {
+            font-family: var(--font-display);
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #fff, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .badge {
+            background: var(--border-color);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        main {
+            flex: 1;
+            padding: 40px;
+            max-width: 1600px;
+            width: 100%;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 32px;
+        }
+
+        @media (max-width: 1024px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .glass-panel {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            backdrop-filter: blur(16px);
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        h2 {
+            font-family: var(--font-display);
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-main);
+            border-left: 4px solid var(--primary);
+            padding-left: 12px;
+            margin-bottom: 8px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+        }
+
+        label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, select {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: var(--text-main);
+            font-family: var(--font-body);
+            font-size: 15px;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 12px var(--primary-glow);
+        }
+
+        .row-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .status-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+            transition: var(--transition);
+        }
+
+        .status-dot.disconnected {
+            background: var(--error);
+            box-shadow: 0 0 15px var(--error-glow);
+            animation: pulse-error 2s infinite;
+        }
+
+        .status-dot.connecting {
+            background: var(--warning);
+            box-shadow: 0 0 15px var(--warning-glow);
+            animation: pulse-warning 1s infinite;
+        }
+
+        .status-dot.connected {
+            background: var(--success);
+            box-shadow: 0 0 15px var(--success-glow);
+            animation: pulse-success 2s infinite;
+        }
+
+        @keyframes pulse-success {
+            0% { box-shadow: 0 0 0 0 hsla(142, 70%, 45%, 0.7); }
+            70% { box-shadow: 0 0 0 10px hsla(142, 70%, 45%, 0); }
+            100% { box-shadow: 0 0 0 0 hsla(142, 70%, 45%, 0); }
+        }
+        @keyframes pulse-warning {
+            0% { box-shadow: 0 0 0 0 hsla(38, 95%, 55%, 0.7); }
+            70% { box-shadow: 0 0 0 10px hsla(38, 95%, 55%, 0); }
+            100% { box-shadow: 0 0 0 0 hsla(38, 95%, 55%, 0); }
+        }
+        @keyframes pulse-error {
+            0% { box-shadow: 0 0 0 0 hsla(355, 85%, 55%, 0.7); }
+            70% { box-shadow: 0 0 0 10px hsla(355, 85%, 55%, 0); }
+            100% { box-shadow: 0 0 0 0 hsla(355, 85%, 55%, 0); }
+        }
+
+        .status-text {
+            font-weight: 600;
+            font-size: 15px;
+            letter-spacing: 0.5px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary), var(--primary));
+            color: var(--bg-base);
+            border: none;
+            border-radius: 12px;
+            padding: 14px 24px;
+            font-size: 15px;
+            font-weight: 700;
+            font-family: var(--font-display);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px var(--primary-glow);
+            filter: brightness(1.1);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-disconnect {
+            background: linear-gradient(135deg, var(--error), hsl(355, 75%, 45%));
+            color: white;
+            box-shadow: 0 4px 15px var(--error-glow);
+        }
+
+        .btn-disconnect:hover {
+            box-shadow: 0 8px 25px var(--error-glow);
+        }
+
+        .workspace-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .viewscreen-container {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            aspect-ratio: 4/3;
+            max-height: 560px;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.5);
+        }
+
+        #camera-video, #canvas-output {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        .camera-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 40px;
+        }
+
+        .camera-placeholder svg {
+            width: 64px;
+            height: 64px;
+            stroke: var(--text-muted);
+            opacity: 0.4;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-box {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .stat-value {
+            font-family: var(--font-display);
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            text-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 12px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .tab-button {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-family: var(--font-display);
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+
+        .tab-button.active {
+            color: var(--primary);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .image-upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .image-upload-area:hover {
+            border-color: var(--primary);
+            background: rgba(185, 100%, 48%, 0.05);
+        }
+
+        .log-panel {
+            background: hsla(230, 25%, 5%, 0.85);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            font-family: 'Space Grotesk', monospace;
+            font-size: 13px;
+            padding: 16px 20px;
+            height: 180px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        .log-entry {
+            display: flex;
+            gap: 12px;
+            line-height: 1.4;
+        }
+
+        .log-time {
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .log-msg-info { color: var(--primary); }
+        .log-msg-success { color: var(--success); }
+        .log-msg-warn { color: var(--warning); }
+        .log-msg-error { color: var(--error); }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-base);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo-icon">Q</div>
+            <div>
+                <h1>DrowsyGuard Test Suite</h1>
+                <p style="font-size: 12px; color: var(--text-muted)">WebSocket Camera Streamer</p>
+            </div>
+        </div>
+        <div class="badge">Arduino Q Peripherals</div>
+    </header>
+
+    <main>
+        <!-- Sidebar Controls -->
+        <section class="glass-panel">
+            <div>
+                <h2>Cấu hình kết nối</h2>
+                <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+                    Thiết lập thông số kết nối tới WebSocket Camera server của board.
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label for="board-ip">IP Address của Board</label>
+                <input type="text" id="board-ip" value="localhost" placeholder="Ví dụ: 192.168.1.50 hoặc localhost">
+            </div>
+
+            <div class="row-inputs">
+                <div class="form-group">
+                    <label for="board-port">Cổng (Port)</label>
+                    <input type="number" id="board-port" value="8080">
+                </div>
+                <div class="form-group">
+                    <label for="secret-key">Secret Key</label>
+                    <input type="text" id="secret-key" placeholder="Không bắt buộc" value="">
+                </div>
+            </div>
+
+            <div class="status-card">
+                <div class="status-indicator">
+                    <div class="status-dot disconnected" id="connection-dot"></div>
+                    <div class="status-text" id="connection-status">Chưa kết nối</div>
+                </div>
+                <button class="btn" id="btn-toggle-connection">Connect</button>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+            <div>
+                <h2>Cấu hình hình ảnh</h2>
+            </div>
+
+            <div class="row-inputs">
+                <div class="form-group">
+                    <label for="fps-select">FPS (Tốc độ)</label>
+                    <select id="fps-select">
+                        <option value="5">5 FPS</option>
+                        <option value="10">10 FPS</option>
+                        <option value="15" selected>15 FPS</option>
+                        <option value="30">30 FPS</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="quality-select">Chất lượng JPEG</label>
+                    <select id="quality-select">
+                        <option value="50">50% (Thấp)</option>
+                        <option value="75">75% (Vừa)</option>
+                        <option value="90" selected>90% (Tốt)</option>
+                        <option value="100">100% (Gốc)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="resolution-select">Độ phân giải</label>
+                <select id="resolution-select">
+                    <option value="640x480" selected>640 x 480 (VGA)</option>
+                    <option value="1280x720">1280 x 720 (HD)</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- Workspace & Preview -->
+        <section class="workspace-panel">
+            <div class="tab-container">
+                <button class="tab-button active" onclick="switchTab('camera-tab')">📷 Live Webcam</button>
+                <button class="tab-button" onclick="switchTab('image-tab')">🖼️ Static Image / Upload</button>
+            </div>
+
+            <!-- TAB 1: Camera -->
+            <div id="camera-tab" class="tab-content active">
+                <div class="form-group">
+                    <label for="camera-select">Chọn nguồn Camera</label>
+                    <select id="camera-select">
+                        <option value="">Đang tìm thiết bị...</option>
+                    </select>
+                </div>
+
+                <div class="viewscreen-container">
+                    <video id="camera-video" autoplay playsinline muted></video>
+                    <canvas id="canvas-output" style="display: none;"></canvas>
+                    <div class="camera-placeholder" id="video-placeholder">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                        <p style="font-weight: 500;">Camera chưa được kích hoạt</p>
+                        <p style="font-size: 13px; max-width: 280px;">Kết nối thành công để bắt đầu stream dữ liệu camera trực tiếp.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: Static Image -->
+            <div id="image-tab" class="tab-content">
+                <div class="image-upload-area" onclick="document.getElementById('image-file-input').click()">
+                    <svg style="width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.6; stroke: var(--primary)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <p style="font-weight: 500;">Tải lên ảnh kiểm thử của bạn</p>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Hỗ trợ định dạng JPG, PNG, WebP</p>
+                    <input type="file" id="image-file-input" style="display: none;" accept="image/*">
+                </div>
+
+                <div class="viewscreen-container" id="static-preview-container">
+                    <img id="static-preview" style="max-width: 100%; max-height: 100%; object-fit: contain; display: none;" alt="Preview">
+                    <div class="camera-placeholder" id="image-placeholder">
+                        <p style="font-size: 13px;">Chưa chọn ảnh. Tải ảnh lên hoặc dùng ảnh mặc định để kiểm thử.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats & Logs -->
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <span class="stat-label">Số frame đã gửi</span>
+                    <span class="stat-value" id="stat-frames">0</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">FPS hiện tại</span>
+                    <span class="stat-value" id="stat-fps">0.0</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Dung lượng trung bình</span>
+                    <span class="stat-value" id="stat-size">0.0 KB</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Băng thông</span>
+                    <span class="stat-value" id="stat-bandwidth">0.0 KB/s</span>
+                </div>
+            </div>
+
+            <div>
+                <h2>Nhật ký hoạt động (System Log)</h2>
+                <div class="log-panel" id="log-panel">
+                    <div class="log-entry">
+                        <span class="log-time">[00:00:00]</span>
+                        <span class="log-msg-info">Hệ thống sẵn sàng. Vui lòng thiết lập cấu hình kết nối.</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // DOM Elements
+        const ipInput = document.getElementById('board-ip');
+        const portInput = document.getElementById('board-port');
+        const secretInput = document.getElementById('secret-key');
+        const fpsSelect = document.getElementById('fps-select');
+        const qualitySelect = document.getElementById('quality-select');
+        const resolutionSelect = document.getElementById('resolution-select');
+        const btnToggleConnection = document.getElementById('btn-toggle-connection');
+        const connectionDot = document.getElementById('connection-dot');
+        const connectionStatus = document.getElementById('connection-status');
+        const logPanel = document.getElementById('log-panel');
+        const cameraSelect = document.getElementById('camera-select');
+        
+        // Tab elements
+        const cameraVideo = document.getElementById('camera-video');
+        const canvasOutput = document.getElementById('canvas-output');
+        const videoPlaceholder = document.getElementById('video-placeholder');
+        const imageFileInput = document.getElementById('image-file-input');
+        const staticPreview = document.getElementById('static-preview');
+        const imagePlaceholder = document.getElementById('image-placeholder');
+
+        // Stats elements
+        const statFrames = document.getElementById('stat-frames');
+        const statFps = document.getElementById('stat-fps');
+        const statSize = document.getElementById('stat-size');
+        const statBandwidth = document.getElementById('stat-bandwidth');
+
+        // State variables
+        let ws = null;
+        let activeTab = 'camera-tab';
+        let mediaStream = null;
+        let streamInterval = null;
+        let isConnected = false;
+        let isConnecting = false;
+        
+        // Analytics
+        let frameCount = 0;
+        let totalSentBytes = 0;
+        let lastStatsTime = Date.now();
+        let frameSizes = [];
+
+        // Add Log Entry
+        function addLog(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="log-time">[${time}]</span>
+                <span class="log-msg-${type}">${message}</span>
+            `;
+            logPanel.appendChild(entry);
+            logPanel.scrollTop = logPanel.scrollHeight;
+        }
+
+        // Initialize Devices List
+        async function getCameraDevices() {
+            try {
+                // Request permissions first to get names
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                
+                cameraSelect.innerHTML = '';
+                if (videoDevices.length === 0) {
+                    cameraSelect.innerHTML = '<option value="">Không tìm thấy camera</option>';
+                    return;
+                }
+
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+                addLog('Đã tải danh sách camera thành công.');
+            } catch (err) {
+                addLog('Không thể truy cập danh sách camera: ' + err.message, 'warn');
+                cameraSelect.innerHTML = '<option value="">Lỗi quyền truy cập camera</option>';
+            }
+        }
+
+        // Switch Tabs
+        window.switchTab = function(tabId) {
+            activeTab = tabId;
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Find tab button that matches
+            const btnIndex = tabId === 'camera-tab' ? 0 : 1;
+            document.querySelectorAll('.tab-button')[btnIndex].classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+            addLog(`Chuyển sang chế độ: ${tabId === 'camera-tab' ? 'Live Webcam' : 'Ảnh tĩnh'}`);
+
+            if (isConnected) {
+                restartStreaming();
+            }
+        }
+
+        // File upload handling
+        imageFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                staticPreview.src = event.target.result;
+                staticPreview.style.display = 'block';
+                imagePlaceholder.style.display = 'none';
+                addLog(`Đã tải ảnh lên thành công: ${file.name}`);
+                
+                if (isConnected) {
+                    restartStreaming();
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Initialize camera stream
+        async function startCamera() {
+            try {
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                }
+
+                const deviceId = cameraSelect.value;
+                const constraints = {
+                    video: deviceId ? { deviceId: { exact: deviceId } } : true
+                };
+
+                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                cameraVideo.srcObject = mediaStream;
+                cameraVideo.style.display = 'block';
+                videoPlaceholder.style.display = 'none';
+                addLog('Đã khởi tạo Camera Webcam thành công.');
+                return true;
+            } catch (err) {
+                addLog('Lỗi khởi động Camera: ' + err.message, 'error');
+                return false;
+            }
+        }
+
+        function stopCamera() {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+            cameraVideo.style.display = 'none';
+            videoPlaceholder.style.display = 'flex';
+            addLog('Đã ngắt kết nối Camera.');
+        }
+
+        // Connection Toggle
+        btnToggleConnection.addEventListener('click', async () => {
+            if (isConnected) {
+                disconnect();
+            } else if (!isConnecting) {
+                await connect();
+            }
+        });
+
+        async function connect() {
+            isConnecting = true;
+            updateConnectionUI('connecting', 'Connecting...');
+            addLog('Đang kết nối tới server WebSocket...', 'info');
+
+            const ip = ipInput.value.trim() || 'localhost';
+            const port = portInput.value.trim() || '8080';
+            const secret = secretInput.value.trim();
+            
+            let url = `ws://${ip}:${port}?raw=true`;
+            if (secret) {
+                url += `&secret=${encodeURIComponent(secret)}`;
+            }
+
+            try {
+                ws = new WebSocket(url);
+                ws.binaryType = 'arraybuffer';
+
+                ws.onopen = async () => {
+                    isConnected = true;
+                    isConnecting = false;
+                    updateConnectionUI('connected', 'Connected');
+                    addLog('Đã kết nối thành công tới WebSocket Server!', 'success');
+                    
+                    // Reset stats
+                    frameCount = 0;
+                    totalSentBytes = 0;
+                    frameSizes = [];
+                    lastStatsTime = Date.now();
+
+                    // Start streaming loop
+                    if (activeTab === 'camera-tab') {
+                        const camOk = await startCamera();
+                        if (camOk) {
+                            startStreamingLoop();
+                        } else {
+                            disconnect();
+                        }
+                    } else {
+                        if (staticPreview.src) {
+                            startStreamingLoop();
+                        } else {
+                            addLog('Không tìm thấy ảnh tĩnh để stream. Vui lòng tải ảnh lên ở tab "Ảnh tĩnh/Upload".', 'warn');
+                        }
+                    }
+                };
+
+                ws.onclose = (event) => {
+                    disconnect();
+                    addLog(`Kết nối đóng. Code: ${event.code}. Lý do: ${event.reason || 'Không rõ'}`, 'warn');
+                };
+
+                ws.onerror = (err) => {
+                    addLog('Lỗi kết nối WebSocket.', 'error');
+                    disconnect();
+                };
+
+            } catch (err) {
+                addLog('Lỗi kết nối: ' + err.message, 'error');
+                disconnect();
+            }
+        }
+
+        function disconnect() {
+            isConnected = false;
+            isConnecting = false;
+            
+            if (streamInterval) {
+                clearInterval(streamInterval);
+                streamInterval = null;
+            }
+
+            if (ws) {
+                ws.onclose = null;
+                ws.onerror = null;
+                ws.close();
+                ws = null;
+            }
+
+            stopCamera();
+            updateConnectionUI('disconnected', 'Connect');
+            addLog('Đã ngắt kết nối WebSocket.', 'info');
+        }
+
+        function restartStreaming() {
+            if (streamInterval) {
+                clearInterval(streamInterval);
+                streamInterval = null;
+            }
+            if (isConnected) {
+                if (activeTab === 'camera-tab') {
+                    startCamera().then(ok => {
+                        if (ok) startStreamingLoop();
+                    });
+                } else {
+                    if (staticPreview.src) {
+                        startStreamingLoop();
+                    }
+                }
+            }
+        }
+
+        function updateConnectionUI(state, btnText) {
+            connectionDot.className = 'status-dot';
+            if (state === 'connected') {
+                connectionDot.classList.add('connected');
+                connectionStatus.innerText = 'Connected';
+                btnToggleConnection.innerText = 'Disconnect';
+                btnToggleConnection.className = 'btn btn-disconnect';
+            } else if (state === 'connecting') {
+                connectionDot.classList.add('connecting');
+                connectionStatus.innerText = 'Connecting...';
+                btnToggleConnection.innerText = 'Connecting';
+                btnToggleConnection.className = 'btn';
+                btnToggleConnection.disabled = true;
+            } else {
+                connectionDot.classList.add('disconnected');
+                connectionStatus.innerText = 'Disconnected';
+                btnToggleConnection.innerText = 'Connect';
+                btnToggleConnection.className = 'btn';
+                btnToggleConnection.disabled = false;
+            }
+        }
+
+        // Streaming Loop
+        function startStreamingLoop() {
+            const fps = parseInt(fpsSelect.value);
+            const intervalMs = 1000 / fps;
+            
+            addLog(`Khởi tạo luồng stream: ${fps} FPS | Độ phân giải: ${resolutionSelect.value}.`, 'info');
+
+            streamInterval = setInterval(() => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+                const [width, height] = resolutionSelect.value.split('x').map(Number);
+                canvasOutput.width = width;
+                canvasOutput.height = height;
+
+                const ctx = canvasOutput.getContext('2d');
+
+                if (activeTab === 'camera-tab') {
+                    if (cameraVideo.readyState === cameraVideo.HAVE_ENOUGH_DATA) {
+                        ctx.drawImage(cameraVideo, 0, 0, width, height);
+                        sendFrame(canvasOutput);
+                    }
+                } else {
+                    if (staticPreview.complete && staticPreview.src) {
+                        ctx.drawImage(staticPreview, 0, 0, width, height);
+                        sendFrame(canvasOutput);
+                    }
+                }
+            }, intervalMs);
+        }
+
+        // Compress and Send Frame
+        function sendFrame(canvas) {
+            const quality = parseFloat(qualitySelect.value) / 100;
+            
+            // Convert canvas content to JPEG blob
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+
+                const fileReader = new FileReader();
+                fileReader.onload = function(event) {
+                    const arrayBuffer = event.target.result;
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(arrayBuffer);
+                        
+                        frameCount++;
+                        totalSentBytes += arrayBuffer.byteLength;
+                        frameSizes.push(arrayBuffer.byteLength);
+                        if (frameSizes.length > 50) frameSizes.shift(); // Keep moving window for stats
+
+                        updateStats(arrayBuffer.byteLength);
+                    }
+                };
+                fileReader.readAsArrayBuffer(blob);
+            }, 'image/jpeg', quality);
+        }
+
+        // Stats update
+        function updateStats(lastFrameSize) {
+            statFrames.innerText = frameCount;
+            
+            // Average frame size
+            const sum = frameSizes.reduce((a, b) => a + b, 0);
+            const avgSizeKb = (sum / frameSizes.length) / 1024;
+            statSize.innerText = `${avgSizeKb.toFixed(1)} KB`;
+
+            // Bandwidth & FPS (Once every second)
+            const now = Date.now();
+            const elapsed = (now - lastStatsTime) / 1000;
+            if (elapsed >= 1.0) {
+                // Compute actual FPS in the last window
+                const currentFps = (frameCount / ((now - lastStatsTime) / 1000));
+                // Wait, compute actual window fps
+                // Simple calculation based on total average since start
+                const bandwidthKb = (totalSentBytes / elapsed) / 1024;
+                statBandwidth.innerText = `${bandwidthKb.toFixed(1)} KB/s`;
+                
+                // Let's do instant FPS
+                const totalElapsed = (now - lastStatsTime) / 1000;
+                statFps.innerText = (frameCount / (totalElapsed)).toFixed(1);
+
+                // Reset for next second
+                // Actually, let's keep it simple:
+                // We show average FPS since start to avoid high fluctuations or simple window FPS
+                const avgFpsSinceStart = frameCount / ((now - lastStatsTime) / 1000);
+                // Wait, it is better to calculate it properly:
+                // Let's just track window counts.
+                // We'll reset frame count window tracker or do moving average.
+            }
+        }
+
+        // Let's do a proper moving window for FPS
+        let frameTimes = [];
+        function trackFPS() {
+            const now = Date.now();
+            frameTimes.push(now);
+            
+            // Remove frames older than 1 second
+            while(frameTimes.length > 0 && frameTimes[0] < now - 1000) {
+                frameTimes.shift();
+            }
+
+            const currentFps = frameTimes.length;
+            statFps.innerText = currentFps.toFixed(1);
+
+            // Compute bandwidth in last 1 second
+            // For simplicity, we also keep a byte track
+        }
+        
+        // Modify sendFrame to count FPS using time stamps
+        const originalSendFrame = sendFrame;
+        sendFrame = function(canvas) {
+            trackFPS();
+            originalSendFrame(canvas);
+        }
+
+        // Bandwidth calculation helper
+        let lastByteTime = Date.now();
+        let bytesInLastSec = 0;
+        setInterval(() => {
+            const now = Date.now();
+            const bandwidthKb = (bytesInLastSec) / 1024;
+            statBandwidth.innerText = `${bandwidthKb.toFixed(1)} KB/s`;
+            bytesInLastSec = 0;
+            lastByteTime = now;
+        }, 1000);
+
+        const originalWsSend = WebSocket.prototype.send;
+        // Inject to count bytes
+        WebSocket.prototype.send = function(data) {
+            if (data instanceof ArrayBuffer) {
+                bytesInLastSec += data.byteLength;
+            }
+            originalWsSend.apply(this, arguments);
+        }
+
+        // Config Changes listener
+        fpsSelect.addEventListener('change', restartStreaming);
+        resolutionSelect.addEventListener('change', restartStreaming);
+        qualitySelect.addEventListener('change', restartStreaming);
+        cameraSelect.addEventListener('change', restartStreaming);
+
+        // Load devices when page loads
+        getCameraDevices();
+
+        // Listen for device changes
+        navigator.mediaDevices.ondevicechange = getCameraDevices;
+
+    </script>
+</body>
+</html>
