@@ -16,7 +16,8 @@ readme = "README.md"
 # arch. See app/python/requirements.txt's comment for the full story.
 dependencies = [
     "numpy>=1.26,<2",
-    "opencv-python>=4.9",
+    "opencv-python-headless>=4.9",
+    "opencv-contrib-python-headless>=4.9",
     "mediapipe>=0.10",
     "tflite-runtime>=2.14; python_version < '3.12'",
     "tensorflow>=2.16; python_version >= '3.12'",

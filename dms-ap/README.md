@@ -67,6 +67,7 @@ Bridge.provide("some_name", python_function)   # sketch can call this
 Bridge.call("other_name", data)                 # calls a sketch-registered function
 App.run(user_loop=loop)
 ```
+
 ```cpp
 // sketch side
 #include "Arduino_RouterBridge.h"
@@ -104,7 +105,7 @@ is the purpose-built, order-of-magnitude-smaller package for that job.
 (`ghcr.io/arduino/app-bricks/python-apps-base:0.10.1`) runs **CPython 3.13**, not the 3.11 this
 repo originally assumed (specs/02 Rev 0.3). `tflite-runtime`'s last PyPI release (2.14.0) has no
 `cp313` wheel on any architecture, so an unconditional `tflite-runtime>=2.14` pin made `uv` fail
-the *entire* `requirements.txt` resolve on-device — including `mediapipe`, unrelated to
+the _entire_ `requirements.txt` resolve on-device — including `mediapipe`, unrelated to
 tflite-runtime, which showed up as `ModuleNotFoundError` in the container logs purely as collateral
 damage. Both files now gate `tflite-runtime` behind `python_version < "3.12"` and pull `tensorflow`
 otherwise, so `uv` picks the installable one instead of failing the whole resolve.
@@ -122,6 +123,25 @@ To deploy the full dual-brain application to an actual Arduino UNO Q device:
    - This process will automatically compile and flash `app/sketch/sketch.ino` to the STM32 MCU.
    - It will also synchronize the `app/python/` directory (including models and config) to the QRB2210 Linux MPU.
 5. Once deployed, the device will automatically run `app/python/main.py` using the App Lab router bridge.
+
+### First Run & Troubleshooting Notes
+
+When deploying for the **very first time**, the App Lab environment will start the container and run `uv pip install` to download large dependencies (like `tensorflow`, `mediapipe`, and `opencv-python`).
+
+- **DO NOT unplug the board** immediately after the App Lab portal says "Container Started" or "Deployed". The background download process takes 5-10 minutes. Interrupting power during this step will corrupt the Python environment and crash the container (e.g., `Exited (255)`).
+- **Subsequent runs are instant**: Once the packages are downloaded into the container's `.venv`, they are cached permanently. Rebooting or reconnecting the board later will start the Python code immediately.
+
+If the app fails to start or you want to monitor the background downloads:
+
+1. SSH into the board: `ssh arduino@<IP_ADDRESS>` (or `root@<IP_ADDRESS>` depending on your image).
+2. List all containers to find your app: `docker ps -a` (look for `app-main-1`).
+3. View real-time logs on the board: `docker logs -f app-main-1` (press `Ctrl+C` to exit).
+4. Save logs to a file on the board: `docker logs app-main-1 > /tmp/dms-ap.log`.
+5. If the container crashed due to a power loss during download, restart it manually: `docker start -a app-main-1`.
+6. To **get the logs** onto your PC, run this from your **host machine's terminal** (not inside the SSH session):
+   ```bash
+   scp arduino@<IP_ADDRESS>:/tmp/dms-ap.log ./dms-ap.log
+   ```
 
 ## Quick start
 
@@ -149,11 +169,11 @@ argparse + manual-loop bench mode with `NullTransport`.
 scattered. It is **more capable than the integrated backend** in exactly the two places
 `inference/blazeface_cnn_backend.py` is weakest:
 
-| | `inference/blazeface_cnn_backend.py` (integrated) | `prototypes/face_mesh_ear_mar/` (not integrated) |
-|---|---|---|
-| Face model | MediaPipe BlazeFace (6 keypoints) + 2 trained CNNs | MediaPipe **Face Mesh** (478 landmarks) |
-| Eye state | CNN classifier on an eye crop | **EAR** (Eye Aspect Ratio) — landmark geometry, `EAR < 0.22` for 15 frames |
-| Mouth/yawn | CNN classifier on a mouth crop | **MAR** (Mouth Aspect Ratio) — landmark geometry, `MAR > 0.55` for 15 frames |
+|                | `inference/blazeface_cnn_backend.py` (integrated)         | `prototypes/face_mesh_ear_mar/` (not integrated)                                                            |
+| -------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Face model     | MediaPipe BlazeFace (6 keypoints) + 2 trained CNNs        | MediaPipe **Face Mesh** (478 landmarks)                                                                     |
+| Eye state      | CNN classifier on an eye crop                             | **EAR** (Eye Aspect Ratio) — landmark geometry, `EAR < 0.22` for 15 frames                                  |
+| Mouth/yawn     | CNN classifier on a mouth crop                            | **MAR** (Mouth Aspect Ratio) — landmark geometry, `MAR > 0.55` for 15 frames                                |
 | Head pose (D1) | **not implemented** (`yaw_deg`/`pitch_deg` always `None`) | **implemented** — `facial_transformation_matrixes` + `cv2.RQDecomp3x3`, `yaw>25°`/`pitch>20°` for 20 frames |
 
 That MAR/EAR/head-pose approach is much closer to what
@@ -177,12 +197,12 @@ algorithm details.
 Run `PYTHONPATH=app/python python -m pytest tests/ -v` (needs only `pytest` + `pyyaml`, nothing else):
 
 - **`domains/`** — every rule in [specs/03 §3-§5](../specs/03-drowsiness-domain-spec.md) with a
-  DOM-* ID has a corresponding test, mirroring [specs/07](../specs/07-test-cases.md) TC-DOM-*:
+  DOM-_ ID has a corresponding test, mirroring [specs/07](../specs/07-test-cases.md) TC-DOM-_:
   glance noise floor, cumulative-vs-continuous distraction, indicator suppression, yawn event
   gating (single yawn never alarms), microsleep dwell thresholds, wall-clock-not-frame-count dwell,
   PERCLOS hysteresis, D3 UNAVAILABLE never reporting IDLE, CRITICAL's clear-dwell requirement.
 - **`fusion/`** — the L0-L3 ladder, ack refractory/saturation, the L2→L3 no-ack escalation timer,
-  L3 never auto-de-escalating, sensor-loss never mapping to L0. Mirrors TC-FUS-*.
+  L3 never auto-de-escalating, sensor-loss never mapping to L0. Mirrors TC-FUS-\*.
 - **`link/icd.py` + `crc8.py`** — byte-exact round-trips against hand-computed payloads, CRC
   rejection of bad frames, magic-byte rejection on EMERGENCY_STOP (CAN-051). **Same CRC-8 test
   vectors as `vcs-mcxn947/src/icd/crc8.c`**, both copied from `../shared/icd/crc_vectors.csv` — see
@@ -226,5 +246,6 @@ Run `PYTHONPATH=app/python python -m pytest tests/ -v` (needs only `pytest` + `p
 ## `Custom_Blaze_Face+CNN/` is superseded
 
 That folder's `demo.py` logic now lives in `app/python/drowsyguard/inference/blazeface_cnn_backend.py`
-+ `debug_overlay.py` + `capture/camera.py`, and its `models/` moved to `app/python/models/`. The
-original folder has been removed from the repo rather than kept as a stale duplicate.
+
+- `debug_overlay.py` + `capture/camera.py`, and its `models/` moved to `app/python/models/`. The
+  original folder has been removed from the repo rather than kept as a stale duplicate.

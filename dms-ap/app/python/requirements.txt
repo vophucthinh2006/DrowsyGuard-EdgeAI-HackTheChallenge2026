@@ -23,7 +23,6 @@
 # `try: tflite_runtime except ImportError: tensorflow.lite` already expects
 # -- that fallback just never got a chance to run while the install itself
 # was failing.
-opencv-python>=4.9
 mediapipe>=0.10
 tflite-runtime>=2.14; python_version < "3.12"
 tensorflow>=2.16; python_version >= "3.12"

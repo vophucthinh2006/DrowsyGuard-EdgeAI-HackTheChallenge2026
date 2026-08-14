@@ -1,0 +1,16 @@
+opencv-python
+numpy
+
+# Only ONE of the following three is required - the code (tflite_backend.py,
+# obstruction_detector.py) auto-picks whichever is installed. Keep
+# ai-edge-litert uncommented by default; switch to one of the others if it
+# fails to install for your target architecture.
+#
+# NOTE: App Lab currently defaults to Python 3.13. If ai-edge-litert (or
+# tflite-runtime) has no prebuilt aarch64 wheel for 3.13 yet, this line will
+# fail to install on first Run. If that happens, comment it out and
+# uncomment tflite-runtime or tensorflow below instead, or pin an older
+# Python version for the app (see README.md).
+ai-edge-litert
+# tflite-runtime
+# tensorflow

@@ -1,0 +1,35 @@
+# Arduino App Lab manifest.
+#
+# IMPORTANT: Arduino App Lab is a young, fast-moving product (it went from
+# v0.3 to v0.10 in a few months) and I could not verify the exact current
+# app.yaml schema hands-on (no access to App Lab itself in this environment).
+# The safest way to get a 100% correct app.yaml is to create a blank app
+# directly in App Lab (or via its CLI) and let it generate this file for
+# you, then copy the contents of python/ from this project into the
+# generated app's python/ folder. The fields below reflect the general shape
+# described in Arduino's own docs/examples as of mid-2026 - double check
+# against https://docs.arduino.cc/software/app-lab/ before relying on them.
+
+name: driver-monitoring-app
+description: >
+  On-device driver monitoring (drowsiness, yawning, distraction, and
+  mask/sunglasses detection) running entirely on the board's Linux (MPU)
+  side, calling raw .tflite models directly instead of a MediaPipe .task
+  bundle or an Edge Impulse .eim model.
+version: 0.1.0
+
+# This app does not use any official pre-built Brick (Object Detection,
+# Video Object Detection, WebUI-HTML, etc.) - it is a single, self-contained
+# Python app with its own minimal built-in web viewer (see python/webui.py).
+# If you would rather compose this as reusable Bricks, see README.md for
+# notes on splitting python/*.py into a Custom Brick.
+bricks: []
+
+python:
+  entrypoint: main.py
+  requirements: requirements.txt
+
+# No microcontroller (STM32/Zephyr) logic is used by this app - see
+# sketch/sketch.ino for an empty placeholder sketch.
+sketch:
+  entrypoint: sketch.ino
