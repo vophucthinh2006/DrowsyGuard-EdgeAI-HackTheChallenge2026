@@ -356,7 +356,19 @@ bool CanLink_TransmitVcsStatus(const dg_vcs_status_t *status) {
   frame.dataByte6 = payload[6];
   frame.dataByte7 = payload[7];
 
-  return FLEXCAN_TransferSendBlocking(CAN_LINK_BASEADDR, MB_TX_VCS_STATUS, &frame) ==
+  /* Non-blocking: on a bus with no ACKing peer (bring-up, single node) a
+   * blocking send never returns -- FLEXCAN_TransferSendBlocking() polls with
+   * no timeout in this build (FLEXCAN_POLLING_TIMEOUT=0) and would hang
+   * telemetry_task, and every lower-priority task with it, forever. Firing
+   * the frame and letting the ISR (kStatus_FLEXCAN_TxIdle in
+   * CanLink_Callback) retire the mailbox costs nothing here: VCS_STATUS is
+   * periodic latest-wins telemetry, so a frame dropped because the mailbox
+   * was still busy from the previous cycle is simply superseded by the next
+   * one 100 ms later. */
+  flexcan_mb_transfer_t xfer;
+  xfer.mbIdx = MB_TX_VCS_STATUS;
+  xfer.frame = &frame;
+  return FLEXCAN_TransferSendNonBlocking(CAN_LINK_BASEADDR, &s_canHandle, &xfer) ==
          kStatus_Success;
 }
 
@@ -402,7 +414,21 @@ static void ServiceOneRepeater(dg_repeater_t *rep, uint32_t now_ms) {
   frame.dataByte0 = rep->payload[0];
   frame.dataByte1 = rep->payload[1];
 
-  (void)FLEXCAN_TransferSendBlocking(CAN_LINK_BASEADDR, (uint8_t)rep->mbIdx, &frame);
+  /* Non-blocking for the same reason as CanLink_TransmitVcsStatus(): this
+   * runs from control_task (second-highest priority), and a blocking send
+   * with no ACK on the bus would freeze it -- and with it every
+   * lower-priority task (alerts, telemetry, the sim console), since a
+   * priority-preempting busy-wait never yields. If the mailbox is still busy
+   * finishing the previous copy (kStatus_FLEXCAN_TxBusy), leave the repeater
+   * state untouched so this same copy is retried on the next control tick
+   * (10 ms later) instead of being silently dropped. */
+  flexcan_mb_transfer_t xfer;
+  xfer.mbIdx = (uint8_t)rep->mbIdx;
+  xfer.frame = &frame;
+  if (FLEXCAN_TransferSendNonBlocking(CAN_LINK_BASEADDR, &s_canHandle, &xfer) !=
+      kStatus_Success) {
+    return; /* mailbox busy -- try again next tick, don't consume this copy */
+  }
 
   rep->sendsRemaining--;
   rep->nextDueMs = now_ms + EVENT_REPEAT_SPACING_MS;
@@ -425,3 +451,17 @@ bool CanLink_EmergencyStopReceived(dg_estop_reason_t *reason) {
 }
 
 void CanLink_ClearEmergencyStopReceived(void) { s_estopReceived = false; }
+
+/* ---- bring-up / test injection (see can_link.h) --------------------------- */
+
+void CanLink_SimInjectDmsStatus(const dg_dms_status_t *status) {
+  s_latestDmsStatus   = *status;
+  s_haveDmsStatus      = true;
+  s_lastDmsStatusSeq   = (int8_t)status->seq;
+  s_lastValidRxTickMs  = TicksToMs(xTaskGetTickCount());
+}
+
+void CanLink_SimInjectEmergencyStop(dg_estop_reason_t reason) {
+  s_estopReason   = reason;
+  s_estopReceived = true;
+}

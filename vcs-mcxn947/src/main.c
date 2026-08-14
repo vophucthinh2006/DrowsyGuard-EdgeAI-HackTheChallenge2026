@@ -30,6 +30,7 @@
 #include "icd/icd.h"
 #include "motion/motion.h"
 #include "safety/safety.h"
+#include "sim_uart/sim_uart.h"
 
 #define DG_FW_VERSION "0.1.0-bringup"
 /* DEV-071 wants a git short SHA + dirty flag embedded at boot. Not wired
@@ -117,8 +118,15 @@ static void ControlTask(void *pv) {
      * NOT wired yet"). motor_current_ma / motor_rail_mv stay 0 = "not
      * wired" per OI-05-01, which safety.c's EvaluateFaults() treats as "no
      * reading available", never as an actual fault. */
-    inputs.throttle_nonzero = (Safety_GetState() == kDgVehArmedIdle) &&
-                               rearm; /* bench-only: hold re-arm to roll */
+    /* Bench-only: hold re-arm to roll. Must NOT be gated on
+     * Safety_GetState() == kDgVehArmedIdle -- once RUN is entered the state
+     * is no longer ArmedIdle, so that gate would flip throttle_nonzero back
+     * to false on the very next tick even while rearm is still held,
+     * bouncing RUN -> ArmedIdle -> RUN every control tick (10 ms) and
+     * pinning motor duty near 0 % forever. throttle_nonzero should reflect
+     * only the raw "is the pretend throttle input asserted" signal; which
+     * *states* react to it is safety.c's business, not this input's. */
+    inputs.throttle_nonzero = rearm;
 
     CanLink_UpdateSupervisor(now_ms);
     Safety_Tick(now_ms, &inputs);
@@ -208,6 +216,7 @@ int main(void) {
   Alerts_Init();
 
   CanLink_StartRxTask();
+  SimUart_Start(); /* bring-up aid, see sim_uart.h -- type "help" on the console */
 
   if (xTaskCreate(ControlTask, "control_task", TASK_STACK_SIZE, NULL,
                    CONTROL_TASK_PRIORITY, NULL) != pdPASS) {

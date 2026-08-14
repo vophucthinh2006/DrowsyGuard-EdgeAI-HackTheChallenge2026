@@ -27,29 +27,53 @@ the vehicle react correctly, because that is the part that would matter in a rea
 |---|---|---|
 | Motors | 4 × TT-type DC gear motor, ~1:48, 3–6 V | ⚠️ ASM-02 — stall current to be measured |
 | Arrangement | Differential drive: left pair (FL+RL) and right pair (FR+RR) paralleled per channel | 🟡 |
-| Driver — preferred | TB6612FNG dual H-bridge, 3.3 V logic, ~1.2 A/ch continuous | ⬜ |
-| Driver — baseline | L298N dual H-bridge (commonly bundled with these motors) | ⬜ |
+| Driver | BTS7960 43 A half-bridge module, 1 per channel (2 total), 5 V-tolerant logic inputs | ⬜ |
 | Motor supply | 6.0–7.4 V, ≥ 3 A, separately fused from logic | ⬜ |
-| Current sense | Shunt on the motor rail into LPADC, for stall/overcurrent detection | ⬜ |
+| Current sense | `R_IS`/`L_IS` sense outputs on each module, into LPADC, for stall/overcurrent detection | ⬜ |
 
-**VEH-001** — The driver stage SHALL be selected as follows and the choice recorded:
+**VEH-001** — The driver stage SHALL be **BTS7960** (one module per channel, two total). Each
+module exposes `RPWM`/`LPWM` (forward/reverse PWM inputs) and `R_EN`/`L_EN` (half-bridge enables)
+rather than the single-PWM-plus-direction-pins interface of a conventional dual H-bridge IC:
 
-| | TB6612FNG (preferred) | L298N (fallback) |
-|---|---|---|
-| Logic level | 3.3 V native | 5 V logic — **requires level shifting from the 3.3 V MCU** |
-| Voltage drop | ~0.5 V total | ~2.0 V total — motors see ~2 V less than the rail |
-| PWM frequency | up to 100 kHz | practical ceiling ~20 kHz, efficiency degrades |
-| Efficiency | MOSFET, cool | BJT Darlington, needs a heatsink |
+| | BTS7960 |
+|---|---|
+| Logic level | 3.3–5 V compatible input thresholds — drives cleanly from the 3.3 V MCU, no level shifting |
+| Voltage drop | low — MOSFET half-bridges, ~tens of mΩ Rds(on) per leg |
+| PWM frequency | datasheet-rated up to ~25 kHz |
+| Efficiency | MOSFET, no heatsink required at this current level |
+| Continuous current | up to 43 A per module (motor stall current, ASM-02, is far below this) |
 
-*Rationale for stating both: the yellow-motor kits ship with an L298N, so that is what the team
-most likely has on the bench on day one. It works, but it drops 2 V and cannot be driven above
-audibility without loss — and the audible PWM whine competes directly with the buzzer that is
-supposed to wake the driver. If a TB6612FNG can be sourced, source it.*
+*Rationale: BTS7960 modules are the commonly-sourced alternative to the L298N/TB6612FNG for this
+class of hobby chassis, and their headroom eliminates the L298N's voltage-drop and audible-whine
+problems without needing to source a TB6612FNG specifically. The tradeoff is wiring: each channel
+needs 2 PWM-capable MCU pins (`RPWM`+`LPWM`) instead of 1 PWM + 2 GPIO, so 2 motor channels need 4
+PWM outputs, not 2 — see §2.2.*
 
-**VEH-002** — PWM frequency SHALL be **20 kHz** with a TB6612FNG (above the audible band) and
-**8 kHz** with an L298N. If the L298N is used, the resulting audible whine SHALL be recorded as a
-known deviation, since it degrades the L1 "soft beep" alert
-([SYS-SR-007](01-system-requirements.md#7-safety-requirements)).
+**VEH-002** — PWM frequency SHALL be **20 kHz** (below the BTS7960's ~25 kHz ceiling and above the
+audible band, so the PWM edge does not compete with the buzzer's L1 "soft beep" alert,
+[SYS-SR-007](01-system-requirements.md#7-safety-requirements)).
+
+**VEH-001a** — Drive convention for each BTS7960 module, **NORMATIVE**: `R_EN` and `L_EN` are tied
+together per module and driven by one shared MCU enable line (mirrors the previous "shared STBY"
+concept — see §2.2). While the driver stage is enabled:
+
+| Commanded state | `RPWM` | `LPWM` | Resulting motor behaviour |
+|---|---|---|---|
+| Forward, magnitude *m* | duty = *m* | 0 | forward at speed *m* |
+| Reverse, magnitude *m* | 0 | duty = *m* | reverse at speed *m* |
+| Zero / hold | 0 | 0 | **both low-side switches conduct — this is an active (short) brake**, not a coast |
+
+Driving the shared enable line low de-asserts both `R_EN`/`L_EN` on both modules, which is the
+*only* way to get a true high-impedance coast with this driver — this is what phase 3 of the
+safe-stop sequence (§6, "motor enable de-asserted") does, and it is also the disabled state for
+every non-driving vehicle state (`INIT`/`DISARMED`/`ARMED_IDLE`/`STOPPED`/`FAULT`/`ESTOP`).
+*Rationale: unlike the TB6612FNG truth table this spec previously assumed (where `AIN1=AIN2=0` is
+Hi-Z coast), a BTS7960 held at `RPWM=LPWM=0` with its enables asserted is actively braking, because
+both low-side FETs are on and short the motor terminals together. This is convenient — it means the
+safe-stop brake phase (VEH-040 phase 2) and "throttle returned to zero mid-drive" collapse to the
+same electrical state — but it is a real behavioural difference from the driver this spec originally
+assumed, and it is why RUN/LIMITED momentarily braking instead of coasting whenever the setpoint
+passes through zero is expected, not a bug.*
 
 ### 2.2 MCU peripheral allocation
 
@@ -60,10 +84,9 @@ header tables (17–20) for conflicts — none are guessed.
 
 | Function | Peripheral | Pin | Notes |
 |---|---|---|---|
-| Motor L / R PWM | PWM1 (eFlexPWM) SM0 / SM1, channel A | PORT2_6 / PORT2_4 (J3-15 / J3-11), ALT5 | Two independent duty channels, edge-aligned |
-| Motor L dir (AIN1/AIN2) | GPIO | PORT0_29 / PORT1_23 (J1-D2/D3) | TB6612FNG truth table (forward/reverse/brake/coast) |
-| Motor R dir (BIN1/BIN2) | GPIO | PORT0_30 / PORT0_31 (J1-D4/D7) | same truth table |
-| Driver STBY (shared enable) | GPIO | PORT0_28 (J2-D8), active-high | Defaults low (disabled) at reset |
+| Motor L RPWM / LPWM | PWM1 (eFlexPWM) SM0, channel A / B | PORT2_6 / PORT2_7 (J3-15 / J3-13), ALT5 | One submodule, 2 independent channels — VEH-001a |
+| Motor R RPWM / LPWM | PWM1 (eFlexPWM) SM1 channel A / SM3 channel A | PORT2_4 / PORT2_0 (J3-11 / J3-1), ALT5 | SM1's own channel B is not header-accessible (routed to on-board FLEXSPI0 flash), so LPWM_R uses SM3 instead — see `board_port/pin_mux.c` |
+| Driver EN (shared `R_EN`+`L_EN`, both modules) | GPIO | PORT0_28 (J2-D8), active-high | Defaults low (disabled) at reset — VEH-001a |
 | CAN | FlexCAN0, classical mode | PORT1_10 (TXD) / PORT1_11 (RXD), ALT11 | See [04](04-interface-control-document.md); on-board TJA1057GTK/3Z transceiver, header J10 |
 | Buzzer | PWM1 SM2, channel A (tone generation) | PORT2_2 (J3-7), ALT5 | Frequency-agile — `PWM_SetupPwm()` re-called only when the frequency actually changes |
 | Status LED (R/G/B) | GPIO, **active-LOW** on this board | PORT0_10 / PORT0_27 / PORT1_2 | Matches `../touch_rgb`, `../wifi_sensing_npu` in this workspace |
@@ -351,7 +374,7 @@ SHALL be a latching mushroom-head switch.
 |---|---|---|---|
 | OI-05-01 ⚠️ | Measure actual TT motor stall current and set `I_STALL_LIMIT` | HW | Before first motion test |
 | OI-05-02 ⚠️ | Measure `MIN_MOVE_DUTY` on the loaded chassis | HW | Before first motion test |
-| OI-05-03 | Decide TB6612FNG vs L298N and record the deviation if L298N | HW | Day 1 |
+| ~~OI-05-03~~ | ~~Decide TB6612FNG vs L298N and record the deviation if L298N~~ **Closed** — driver decided as BTS7960 (VEH-001); no L298N/TB6612FNG deviation applies. | HW | Closed 2026-08-14 |
 | OI-05-04 | Verify 85 dB(A) limit by measurement | Test | Before demo |
 | ~~OI-05-05~~ | ~~Confirm chosen pins do not collide with `pin_mux.c` defaults or PIO1_3~~ **Closed** — full pin assignment implemented in `vcs-mcxn947/board_port/pin_mux.c`, cross-checked against UM12018 Tables 17–20 and the SDK's own reference examples; builds clean. Physical wiring itself is still pending. | FW | Closed 2026-08-10 |
 | OI-05-06 | Characterise the actual deceleration profile from the 1500 ms duty ramp (VEH-041) | Test | Before demo |
@@ -364,3 +387,4 @@ SHALL be a latching mushroom-head switch.
 |---|---|---|---|
 | 0.1 | 2026-08-10 | ML_IoT_Love50 | Initial baseline |
 | 0.2 | 2026-08-10 | ML_IoT_Love50 | §2.2 pin table replaced with the implemented, cross-referenced assignment from `vcs-mcxn947/`. OI-05-05 closed. Firmware builds clean; not yet flashed/measured (no §10/§8 items below are closed by this). |
+| 0.3 | 2026-08-14 | ML_IoT_Love50 | Driver decided as BTS7960 (VEH-001/VEH-001a), replacing the TB6612FNG/L298N choice. §2.2 pin table updated: `RPWM`/`LPWM` per channel (PWM1 SM0 A/B for left, SM1 A + SM3 A for right) replace the single-PWM+direction-GPIO interface; shared STBY becomes shared `R_EN`/`L_EN` enable. OI-05-03 closed. `vcs-mcxn947/src/motion` and `board_port/` updated to match. |

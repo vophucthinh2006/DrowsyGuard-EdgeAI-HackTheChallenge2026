@@ -21,20 +21,17 @@
 #define CAN_LINK_BASEADDR CAN0
 #define CAN_LINK_CLK_FREQ CLOCK_GetFlexcanClkFreq(0U)
 
-/* ---- Motor drive (PWM1 SM0/SM1) — specs/05 §2.2/VEH-001 ----------------- */
+/* ---- Motor drive (BTS7960 x2, PWM1 SM0/SM1/SM3) — specs/05 §2.2/VEH-001/VEH-001a --
+ * Each BTS7960 module needs 2 PWM inputs (RPWM/LPWM) instead of 1 PWM + 2 direction
+ * GPIOs. Left channel uses SM0's two channels (A+B); right channel's RPWM is SM1
+ * channel A, but SM1's channel B (PWM1_B1) is not header-accessible on this board
+ * (routed to the on-board FLEXSPI0 flash), so LPWM_R borrows SM3 channel A instead
+ * — see board_port/pin_mux.c for the pin-signal cross-reference. */
 #define MOTION_PWM_BASEADDR    PWM1
 #define MOTION_PWM_SRC_CLK_FREQ CLOCK_GetFreq(kCLOCK_BusClk)
 
-#define MOTION_L_AIN1_GPIO GPIO0
-#define MOTION_L_AIN1_PIN  29U /* Arduino J1-D2 */
-#define MOTION_L_AIN2_GPIO GPIO1
-#define MOTION_L_AIN2_PIN  23U /* Arduino J1-D3 */
-#define MOTION_R_BIN1_GPIO GPIO0
-#define MOTION_R_BIN1_PIN  30U /* Arduino J1-D4 */
-#define MOTION_R_BIN2_GPIO GPIO0
-#define MOTION_R_BIN2_PIN  31U /* Arduino J1-D7 */
-#define MOTION_STBY_GPIO   GPIO0
-#define MOTION_STBY_PIN    28U /* Arduino J2-D8, active-high driver enable */
+#define MOTION_EN_GPIO GPIO0
+#define MOTION_EN_PIN  28U /* Arduino J2-D8, active-high, shared R_EN+L_EN on both modules */
 
 /* ---- Alerts — specs/05 §5 ------------------------------------------------ */
 #define BUZZER_PWM_BASEADDR     PWM1 /* submodule 2, PORT2_2 / PWM1_A2, J3-7 */

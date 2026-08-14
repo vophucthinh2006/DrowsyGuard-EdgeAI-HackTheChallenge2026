@@ -44,6 +44,9 @@ mcux_add_source(
 
             src/alerts/alerts.h
             src/alerts/alerts.c
+
+            src/sim_uart/sim_uart.h
+            src/sim_uart/sim_uart.c
 )
 
 # So src/main.c and friends can #include "icd/icd.h", "can_link/can_link.h"
@@ -60,6 +63,7 @@ mcux_add_include(
              src/safety
              src/motion
              src/alerts
+             src/sim_uart
 )
 
 # Produce a raw .bin next to the .elf so pyOCD can flash it directly.

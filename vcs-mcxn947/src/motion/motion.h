@@ -2,10 +2,10 @@
  * DrowsyGuard VCS — motor drive: speed governing (VEH-020..023) and the
  * safe-stop sequence (VEH-040..044).
  *
- * Owns PWM1 submodules 0/1 (motor L/R, see board_port/pin_mux.c) and the 4
- * direction GPIOs + shared STBY. Duty is written from exactly one place —
- * Motion_Tick(), called once per 10 ms control tick from control_task
- * (VEH-062: "one writer for the actuators").
+ * Owns PWM1 submodules 0/1/3 (2x BTS7960 RPWM/LPWM, see board_port/pin_mux.c)
+ * and the shared R_EN/L_EN enable GPIO. Duty is written from exactly one
+ * place — Motion_Tick(), called once per 10 ms control tick from
+ * control_task (VEH-062: "one writer for the actuators").
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */

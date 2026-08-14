@@ -74,6 +74,21 @@ void CanLink_ServiceRepeaters(uint32_t now_ms);
 bool CanLink_EmergencyStopReceived(dg_estop_reason_t *reason);
 void CanLink_ClearEmergencyStopReceived(void);
 
+/* ---- bring-up / test injection (specs/06 §3.2 "CAN frame injection") -----
+ * Feeds a synthetic frame into exactly the same state a real, CRC-valid CAN
+ * RX would populate, so the safety FSM / motion / alerts chain can be
+ * exercised without a second CAN node. Used by sim_uart.c. Unlike
+ * `tools/can_inject.py` (spec 06), this does NOT exercise FLEXCAN0 itself —
+ * no mailbox, no CRC, no bit timing — it is a firmware-side shortcut for
+ * benches with only this one board and a serial cable, not a substitute for
+ * validating the physical CAN path. Safe to call from any task context:
+ * writes here follow the same unlocked pattern can_rx_task already uses, so
+ * nothing new is introduced. Do not call this while a real DMS-AP is also
+ * transmitting — whichever write lands last wins, same as two senders on
+ * one ID on a real bus, which is exactly why you would not do that either. */
+void CanLink_SimInjectDmsStatus(const dg_dms_status_t *status);
+void CanLink_SimInjectEmergencyStop(dg_estop_reason_t reason);
+
 #ifdef __cplusplus
 }
 #endif

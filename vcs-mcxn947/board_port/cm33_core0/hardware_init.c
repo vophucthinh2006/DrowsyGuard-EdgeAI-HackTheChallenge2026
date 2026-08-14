@@ -16,6 +16,18 @@ void BOARD_InitHardware(void) {
   CLOCK_SetClkDiv(kCLOCK_DivFlexcom4Clk, 1u);
   CLOCK_AttachClk(BOARD_DEBUG_UART_CLK_ATTACH);
 
+  /* WWDT0 functional clock (specs/05 VEH-052) -- found missing only by
+   * actually flashing to hardware: without this, WWDT_Init()'s internal
+   * `while (base->TV == 0xFFUL) {}` spin (fsl_wwdt.c) waits forever for a
+   * clock that was never running, hanging boot silently between the
+   * "[can] FlexCAN0 up" and "[safety] WWDT armed" PRINTF lines -- no error,
+   * no crash, just silence (the exact VEH-003 failure mode: "a peripheral
+   * with no clock reads back zeros and produces no error"). Matches the
+   * SDK's own driver_examples/wwdt/cm33_core0/hardware_init.c for this
+   * board. */
+  CLOCK_SetClkDiv(kCLOCK_DivWdt0Clk, 1U);
+  SYSCON->CLOCK_CTRL |= SYSCON_CLOCK_CTRL_FRO1MHZ_CLK_ENA_MASK;
+
   /* attach PLL1Clk0 to FLEXCAN0 -- identical to the SDK's own
    * examples/_boards/frdmmcxn947/driver_examples/flexcan/interrupt_transfer
    * clock setup, which is why BOARD_BootClockPLL100M() (not the
