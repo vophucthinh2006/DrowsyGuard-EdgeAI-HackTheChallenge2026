@@ -26,6 +26,10 @@ static uint32_t s_wdtFlagUntilMs;
 static uint32_t s_overcurrentSinceMs; /* 0 = "not currently over limit" */
 static uint32_t s_undervoltSinceMs;
 
+static bool s_canEstopLatched = false;
+static bool s_rearmWasPressed = false;
+
+
 /* Motion/alert modules read this indirectly through Safety_GetState(); the
  * safe-stop *sequencing itself* lives in motion.c (VEH-040..044) — safety.c
  * only decides WHEN to enter/leave DECEL/STOPPED, motion.c decides HOW the
@@ -111,8 +115,12 @@ static void EvaluateFaults(uint32_t now_ms, const dg_safety_inputs_t *in) {
 
   dg_estop_reason_t reason;
   if (CanLink_EmergencyStopReceived(&reason)) {
-    s_faults.estop_active = true;
+    s_canEstopLatched = true;
     CanLink_ClearEmergencyStopReceived();
+  }
+  
+  if (s_canEstopLatched) {
+    s_faults.estop_active = true;
   }
 
   dg_link_state_t link = CanLink_GetLinkState();
@@ -132,6 +140,9 @@ static bool AnyFaultActive(void) {
 
 void Safety_Tick(uint32_t now_ms, const dg_safety_inputs_t *inputs) {
   EvaluateFaults(now_ms, inputs);
+
+  bool rearmEdge = inputs->operator_rearm_pressed && !s_rearmWasPressed;
+  s_rearmWasPressed = inputs->operator_rearm_pressed;
 
   dg_dms_status_t dms;
   bool haveDms      = CanLink_GetLatestDmsStatus(&dms);
@@ -189,7 +200,19 @@ void Safety_Tick(uint32_t now_ms, const dg_safety_inputs_t *inputs) {
 
     case kDgVehRun:
     case kDgVehLimited:
-      if (AnyFaultActive()) {
+      /* Real hardware faults (driver overcurrent, undervoltage) go straight
+       * to FAULT -- continuing to drive the motor even for a controlled
+       * ramp risks compounding the fault. Deliberately NOT using
+       * AnyFaultActive() here: it also folds in fault_can_timeout, which is
+       * literally defined as (link == kDgLinkLost) in EvaluateFaults(). If
+       * that were included, this check would always win over the
+       * level==L3/link==LinkLost branch below on a lost link -- making
+       * CAN-062's "execute a full safe stop" (the DECEL ramp+brake
+       * sequence) unreachable via its own trigger, silently replaced by an
+       * abrupt FAULT-path motor disable (immediate coast, no brake). Found
+       * by testing: pausing DMS_STATUS injection while in RUN landed in
+       * FAULT instead of DECEL. */
+      if (s_faults.fault_driver || s_faults.fault_undervoltage) {
         s_state = kDgVehFault;
         break;
       }
@@ -246,8 +269,9 @@ void Safety_Tick(uint32_t now_ms, const dg_safety_inputs_t *inputs) {
       break;
 
     case kDgVehEstop:
-      if (!inputs->estop_sense_asserted && !s_faults.estop_active &&
-          inputs->operator_rearm_pressed) {
+      if (!inputs->estop_sense_asserted && rearmEdge) {
+        s_canEstopLatched = false;
+        s_faults.estop_active = false;
         s_state = kDgVehDisarmed;
         PRINTF("[safety] e-stop released + re-armed -> DISARMED\r\n");
       }

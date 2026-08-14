@@ -86,8 +86,16 @@ static void PrintWatchLine(uint32_t now_ms) {
   /* Plain \r\n, not an in-place \r overwrite: not every serial viewer (GUI
    * consoles especially) renders a bare carriage-return as "erase this
    * line" -- some just print it literally. Appending a new line every
-   * 100 ms is more log noise but never garbles. */
-  PRINTF("[watch] t=%ums state=%-10s link=%-8s dutyL=%3u%%(%s) dutyR=%3u%%(%s) cap=%u%%\r\n",
+   * 100 ms is more log noise but never garbles.
+   *
+   * DEV-033 (see motion.c/main.c): debug_console_lite's PRINTF only
+   * understands the bare conversions (%u, %s, ...) -- no width/left-justify
+   * flags. "%-10s"/"%3u" are not parsed as conversions at all: the flag/width
+   * characters get printed literally AND the argument is left unconsumed,
+   * which desyncs every va_arg read after it (garbage numbers, fields
+   * shifted into the wrong slot). Match PrintStatus()'s plain %s/%u style,
+   * proven to work on this console. */
+  PRINTF("[watch] t=%ums state=%s link=%s dutyL=%u%%(%s) dutyR=%u%%(%s) cap=%u%%\r\n",
          (unsigned int)now_ms, kStateNames[(unsigned int)state], kLinkNames[(unsigned int)link],
          (unsigned int)motion.duty_left_pct, motion.dir_left_reverse ? "rev" : "fwd",
          (unsigned int)motion.duty_right_pct, motion.dir_right_reverse ? "rev" : "fwd",
