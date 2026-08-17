@@ -65,7 +65,7 @@ Vehicle "speed" is **simulated**: `vcs-mcxn947` has no real speed sensor, so bot
 
 ## Hardware
 
-- **Arduino UNO Q** (or VENTUNO Q) + USB webcam + powered USB-C hub (for `MAIN_DMS_YOLOX_System`)
+- **Arduino UNO Q** + USB webcam + powered USB-C hub (for `MAIN_DMS_YOLOX_System`)
 - External CAN transceiver for the UNO Q (e.g. TJA1050) — the UNO Q has no onboard one; see `dms-ap-uno-q/README.md` for the exact wiring (D4/D5, level-shifting on RX) that's confirmed working
 - **NXP FRDM-MCXN947** (`vcs-mcxn947`) — has an onboard CAN transceiver (J10)
 - 2× BTS7960 motor driver modules, 4 DC motors (differential drive), buzzer, 12 V supply for motors
