@@ -1,0 +1,9 @@
+name: DrowsyGuard DMS-AP CAN Control Test
+description: "Real FDCAN1 control link: relays alert-level commands from Python to the VCS (FRDM-MCXN947) over CAN, and reports the VCS's simulated vehicle speed back."
+icon: 🚗
+version: "0.1.0"
+
+# Scratch/test copy of the real DrowsyGuard DMS-AP app's control path -- see
+# README.md. Schema matches ../../QUALCOMM_AI/DrowsyGuard-EdgeAI-HackTheChallenge2026/dms-ap/app/app.yaml.
+ports: []
+bricks: []

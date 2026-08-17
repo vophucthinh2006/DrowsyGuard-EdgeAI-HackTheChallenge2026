@@ -65,7 +65,7 @@ static float s_safeStopRampStartPct;
 
 static dg_motion_status_t s_lastStatus;
 
-static uint8_t SpeedCapForState(dg_vehicle_state_t state, dg_link_state_t link) {
+uint8_t Motion_GetSpeedCap(dg_vehicle_state_t state, dg_link_state_t link) {
   /* VEH-020 NORMATIVE table. Fault/e-stop/init/disarmed/stopped/decel are
    * all "no commanded motion" states handled by the caller before this is
    * consulted (see Motion_Tick) — this function only answers "what's the
@@ -160,6 +160,19 @@ static void InitPwmSubmodule(pwm_submodule_t module, const pwm_channels_t *chann
 void Motion_Init(void) {
   const pwm_channels_t kLeftChannels[2]  = {kPWM_PwmA, kPWM_PwmB}; /* RPWM, LPWM */
   const pwm_channels_t kChannelAOnly[1]  = {kPWM_PwmA};
+
+  /* Debug: print the actual clock frequency PWM_SetupPwm() is being told
+   * to compute the 20 kHz prescaler/period from -- added 2026-08-15 while
+   * chasing "no pulse on ANY PWM1 channel, including the already-working
+   * buzzer" with everything else (pin mux, OUTEN, LDOK bitmask) already
+   * confirmed matching the SDK's own proven reference example. If this
+   * prints 0 or an implausible value, BOARD_BootClockPLL100M() not setting
+   * kCLOCK_DivBusClk (only kCLOCK_DivAhbClk) is the likely root cause --
+   * CLOCK_GetFreq(kCLOCK_BusClk) would be feeding PWM_SetupPwm() a stale/
+   * wrong source frequency, producing a garbage or zero period register
+   * regardless of how correct every other PWM1 register write is. */
+  PRINTF("[motion] MOTION_PWM_SRC_CLK_FREQ = %u Hz (should be tens of MHz, "
+         "not 0 and not >150000000)\r\n", (unsigned int)MOTION_PWM_SRC_CLK_FREQ);
 
   InitPwmSubmodule(kPWM_Module_0, kLeftChannels, 2U); /* left RPWM+LPWM */
   InitPwmSubmodule(kPWM_Module_1, kChannelAOnly, 1U); /* right RPWM */
@@ -292,7 +305,7 @@ void Motion_Tick(uint32_t dt_ms, dg_vehicle_state_t state, dg_link_state_t link,
 
     if (state == kDgVehRun || state == kDgVehLimited) {
       GPIO_PinWrite(MOTION_EN_GPIO, MOTION_EN_PIN, 1U);
-      uint8_t cap = SpeedCapForState(state, link);
+      uint8_t cap = Motion_GetSpeedCap(state, link);
       TickChannel(&s_left, setpoint->left_pct, cap);
       TickChannel(&s_right, setpoint->right_pct, cap);
     } else {
@@ -304,7 +317,7 @@ void Motion_Tick(uint32_t dt_ms, dg_vehicle_state_t state, dg_link_state_t link,
     }
   }
 
-  s_lastStatus.speed_cap_pct   = SpeedCapForState(state, link);
+  s_lastStatus.speed_cap_pct   = Motion_GetSpeedCap(state, link);
   s_lastStatus.duty_left_pct   = (uint8_t)s_left.currentDutyPct;
   s_lastStatus.dir_left_reverse  = (s_left.currentSign < 0);
   s_lastStatus.duty_right_pct  = (uint8_t)s_right.currentDutyPct;

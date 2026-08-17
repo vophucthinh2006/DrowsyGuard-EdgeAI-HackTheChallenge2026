@@ -24,6 +24,16 @@ extern "C" {
 
 void Motion_Init(void);
 
+/* VEH-020 speed cap for the given state/link -- exposed (2026-08-16) so
+ * control_task can clamp its persistent throttle setpoint down whenever the
+ * cap drops (alert-driven LIMITED, or a lost link), not just the actuator
+ * output. Without this, the setpoint stays at its pre-alert value and
+ * silently ramps the motors back up on its own the moment the cap loosens
+ * again (alert clears) -- see main.c ControlTask's "sticky speed cap"
+ * comment for the full rationale. Read-only; does not itself change any
+ * state. */
+uint8_t Motion_GetSpeedCap(dg_vehicle_state_t state, dg_link_state_t link);
+
 /* Driver's commanded setpoint before any cap/ramp is applied, [-100, 100]
  * per channel (sign = direction). In this bring-up firmware there is no
  * physical throttle input yet, so control_task drives this from a fixed

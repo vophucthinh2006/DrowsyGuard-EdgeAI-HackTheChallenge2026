@@ -72,6 +72,7 @@ static flexcan_mb_transfer_t s_rxXfer[3];
 static dg_dms_status_t s_latestDmsStatus;
 static bool s_haveDmsStatus;
 static int8_t s_lastDmsStatusSeq = -1; /* -1 = "no previous frame yet" */
+static int8_t s_lastLoggedAlertLevel = -1; /* -1 = "never logged yet" */
 static uint32_t s_lastValidRxTickMs;
 static uint32_t s_framesLostCount;
 
@@ -218,6 +219,17 @@ static void ProcessDmsStatusSlot(uint32_t now_ms) {
   }
   s_lastDmsStatusSeq = (int8_t)decoded.seq;
 
+  /* Log every time the alert level received from the DMS (UNO Q) changes --
+   * added 2026-08-15, on-change only so it doesn't spam at the 100 ms
+   * DMS_STATUS rate. s_lastLoggedAlertLevel starts at -1 ("never logged
+   * yet") so the very first valid frame received also logs. */
+  if ((int8_t)decoded.alert_level != s_lastLoggedAlertLevel) {
+    static const char *const kAlertNames[] = {"L0_NORMAL", "L1_EARLY", "L2_DROWSY", "L3_DANGER"};
+    PRINTF("[can] DMS alert_level -> %s (from UNO Q)\r\n",
+           kAlertNames[(unsigned int)decoded.alert_level & 0x03U]);
+    s_lastLoggedAlertLevel = (int8_t)decoded.alert_level;
+  }
+
   s_latestDmsStatus = decoded;
   s_haveDmsStatus    = true;
   s_lastValidRxTickMs = now_ms;
@@ -261,6 +273,22 @@ static void ProcessEstopSlot(void) {
   /* A bad magic byte is exactly the case CAN-051 exists for: ignored. */
 }
 
+static dg_link_state_t s_lastLoggedLinkState = kDgLinkLost; /* matches boot default: no frame yet */
+
+/* Debug: log every OK/DEGRADED/LOST transition -- added 2026-08-15. This is
+ * the single most useful log for "why isn't the board being controlled":
+ * if this never reaches OK, nothing downstream (alert_level, speed cap)
+ * ever gets a chance to matter, regardless of what the UNO Q is sending. */
+static void LogLinkStateChange(void) {
+  dg_link_state_t link = CanLink_GetLinkState();
+  if (link != s_lastLoggedLinkState) {
+    static const char *const kLinkNames[] = {"OK", "DEGRADED", "LOST"};
+    PRINTF("[can] link %s -> %s\r\n", kLinkNames[(unsigned int)s_lastLoggedLinkState],
+           kLinkNames[(unsigned int)link]);
+    s_lastLoggedLinkState = link;
+  }
+}
+
 static void CanLinkRxTask(void *pv) {
   (void)pv;
   PRINTF("[can] can_rx_task started\r\n");
@@ -274,6 +302,7 @@ static void CanLinkRxTask(void *pv) {
     ProcessDmsStatusSlot(now_ms);
     ProcessDmsMetricsSlot();
     ProcessEstopSlot();
+    LogLinkStateChange();
     vTaskDelay(pdMS_TO_TICKS(5));
   }
 }

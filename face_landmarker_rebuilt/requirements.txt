@@ -1,9 +1,0 @@
-opencv-python
-numpy
-
-# Chi can MOT trong ba dong duoi day chay duoc la du (bo comment dong ban muon dung).
-# Neu pip khong cai duoc ai-edge-litert (thuong do Python/OS chua co wheel),
-# hay thu tflite-runtime, hoac cuoi cung la tensorflow (nang hon nhung chac chan co banh xe).
-ai-edge-litert
-# tflite-runtime
-# tensorflow

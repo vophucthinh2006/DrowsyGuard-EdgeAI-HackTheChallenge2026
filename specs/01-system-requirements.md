@@ -5,6 +5,36 @@
 
 ---
 
+## 0. Implementation status — what is actually running today (added 2026-08-16)
+
+This document specifies the full target system: a MediaPipe face-landmark pipeline
+feeding a three-domain (D1/D2/D3) fusion engine on the DMS-AP, and a VCS with vibration
+motor, fan and hazard-lamp actuation, gated behind an explicit operator re-arm button.
+**That is not what is deployed on real hardware today.** Two things have shipped
+instead, independently, and neither matches this document exactly:
+
+- **DMS side** — `qualcomm_AI/MAIN_DMS_YOLOX_System/copy-of-object-hunting/` is the only
+  camera-driven implementation running on real hardware. It uses an Edge Impulse YOLOX
+  Nano model (3 detection classes: `closed_eye`/`open_eye`/`yawning`, no landmarks, no
+  head pose) instead of MediaPipe, has no D1 (distraction) domain, and has no fusion
+  ladder — see [03 §0](03-drowsiness-domain-spec.md#0-implementation-status--what-is-actually-running-today-added-2026-08-16)
+  for the full breakdown. `qualcomm_AI/dms-ap-uno-q/` separately implements the *formal*
+  CAN/ICD/Bridge path this document assumes, correctly, but with a keyboard (`0`-`3`)
+  standing in for the vision pipeline — no camera at all. These two DMS implementations
+  have not been reconciled into one.
+- **VCS side** — `qualcomm_AI/vcs-mcxn947/` had its hardware scope trimmed on 2026-08-15
+  to match its system block diagram: the vibration motor, fan relay, hazard lamps, ACK
+  button, and operator re-arm button in §2's diagram and in SYS-FR-032/033 below **do
+  not exist in the built hardware**. Re-arm out of `STOPPED` is now automatic (1 s
+  continuously at L0 + CAN link OK), not an explicit operator input — a direct deviation
+  from SYS-FR-033, acknowledged as deliberate in `vcs-mcxn947/README.md` and
+  `PINOUT.md`, not an oversight. See [05 §0](05-vehicle-control-spec.md#0-implementation-status--what-is-actually-running-today-added-2026-08-16).
+
+Every `SYS-*` requirement below is left as originally written — this section exists so
+the gap is documented once, at the top, rather than discovered requirement-by-requirement.
+
+---
+
 ## 1. Purpose and scope
 
 ### 1.1 Purpose
@@ -60,6 +90,8 @@ implied by any demonstration:
 ---
 
 ## 2. System context
+
+> Target architecture — see [§0](#0-implementation-status--what-is-actually-running-today-added-2026-08-16) for what's actually built (no MediaPipe, no vibration motor/fan/hazard lamps).
 
 ```
                     ┌──────────────────────────────────────────────┐
@@ -138,6 +170,7 @@ model weights and the threshold configuration file. No driver data SHALL survive
 capture rate of **≥ 10 frames per second**.
 
 **SYS-FR-002** — The DMS SHALL run a face-landmark detector producing, per frame, a consistent face landmark set and a head-pose estimate (yaw, pitch). From the landmarks, the pipeline SHALL derive eye-open/closed, mouth-open, and face-presence states.
+*Not implemented as written: the deployed model (`MAIN_DMS_YOLOX_System`) is a YOLOX Nano object detector outputting `closed_eye`/`open_eye`/`yawning` class labels directly, with no landmark set and no head-pose estimate — see [§0](#0-implementation-status--what-is-actually-running-today-added-2026-08-16).*
 
 **SYS-FR-003** — Each detection SHALL carry a confidence score in [0.0, 1.0]. Detections below
 the configured confidence floor SHALL be treated as absent, not as negative evidence.
@@ -157,6 +190,9 @@ on both the CAN bus and the local indicator.
 **SYS-FR-010** — The DMS SHALL maintain three independent detection domains:
 **D1 Distraction**, **D2 Yawning**, **D3 Eye closure**. Full definitions, thresholds and dwell
 times are normative in [03](03-drowsiness-domain-spec.md).
+*Not implemented as written: the deployed system runs D2- and D3-equivalent detection only; D1
+(distraction) is absent because the model has no head-pose output — see
+[03 §0](03-drowsiness-domain-spec.md#0-implementation-status--what-is-actually-running-today-added-2026-08-16).*
 
 **SYS-FR-011** — Each domain SHALL produce a discrete state, and the domain states SHALL be fused
 into a single alert level **L0 NORMAL / L1 EARLY / L2 DROWSY / L3 DANGER**.
@@ -202,6 +238,12 @@ zero, followed by active braking, followed by motor disable with hazard indicati
 resume motion on alert level alone. Resumption SHALL require an explicit operator re-arm input.
 *Rationale: automatically resuming after an unconsciousness event would be actively dangerous
 behaviour to demonstrate, regardless of the fact that this is a scale model.*
+**⚠️ Deviated from in the deployed VCS**: `vcs-mcxn947` has no operator re-arm button (removed
+2026-08-15). `STOPPED`/`FAULT`/`ESTOP` now clear automatically once the alert level has held at
+L0 with a valid CAN link for 1 continuous second (`safety.c`'s `SafeConditionsSustained()`). This
+is exactly the failure mode this requirement's rationale warns against and is flagged here as an
+open safety item, not a documentation gap to silently accept — see
+[05 §0](05-vehicle-control-spec.md#0-implementation-status--what-is-actually-running-today-added-2026-08-16).
 
 ### 4.5 Diagnostics and logging
 
@@ -233,7 +275,7 @@ Allocated budget:
 |---|---:|---|
 | Sensor exposure + transfer + colour convert | 25 ms | DMS-AP |
 | Pre-process (letterbox, normalise, quantise) | 10 ms | DMS-AP |
-| Inference — MediaPipe face-landmark detector @ 320×320 | 80 ms | DMS-AP |
+| Inference — MediaPipe face-landmark detector @ 320×320 (target; deployed model is YOLOX Nano, see §0) | 80 ms | DMS-AP |
 | Post-process + domain update + fusion | 10 ms | DMS-AP |
 | AP → RT handoff | 10 ms | DMS |
 | CAN frame assembly + arbitration + transmission | 5 ms | DMS-RT |
@@ -381,14 +423,14 @@ Full catalogue: [07 — Test Case Catalogue](07-test-cases.md).
 | CON-01 | Hardware (UNO Q) is on loan and arrives after this spec was written; all figures here are budgets | Accepted |
 | CON-02 | Timeline to demonstration is 2026-08-16 — six days from Rev 0.1 | Accepted |
 | CON-03 | QRB2210 has no large dedicated NPU; inference is CPU/GPU-bound, hence INT8 nano backbone | Accepted |
-| ASM-01 | The STM32U585 on the UNO Q exposes an FDCAN peripheral on pins reachable from the headers | ⚠️ **UNCONFIRMED** — see [04 §9](04-interface-control-document.md#9-open-items) |
+| ASM-01 | The STM32U585 on the UNO Q exposes an FDCAN peripheral on pins reachable from the headers | ✅ **CONFIRMED 2026-08-15** — FDCAN1 on D4(PA12)=TX/D5(PA11)=RX, bidirectional real-hardware link proven working; see `dms-ap-uno-q/README.md` |
 | ASM-02 | The 4 TT motors are the common 1:48 yellow gear motors, ~3–6 V, ≈1.2 A stall | ⚠️ To be confirmed by measurement |
-| ASM-03 | Literature-derived thresholds in [03](03-drowsiness-domain-spec.md) transfer acceptably to the team's camera geometry | ⚠️ Must be re-tuned on own corpus |
+| ASM-03 | Literature-derived thresholds in [03](03-drowsiness-domain-spec.md) transfer acceptably to the team's camera geometry | ⚠️ Must be re-tuned on own corpus; deployed system currently ships un-retuned, different-from-literature values, see [03 §0](03-drowsiness-domain-spec.md#0-implementation-status--what-is-actually-running-today-added-2026-08-16) |
 
-**ASM-01 is the single highest-risk open item in the system.** If FDCAN is not reachable on the
-UNO Q headers, the fallback is an SPI CAN controller (MCP2515-class) on the DMS side, which costs
-roughly one day of bring-up and adds ~1 ms of latency to the budget in §5. The contingency SHALL be
-decided within 24 hours of hardware arrival.
+**ASM-01 was the single highest-risk open item in the system and is now resolved**: FDCAN1 is
+reachable and confirmed bidirectional on real hardware (`dms-ap-uno-q/README.md`), using Arduino's
+own first-party `CAN.h` wrapper (`arduino::ZephyrCAN`), not a raw Zephyr driver call and not the
+SPI CAN controller fallback this section originally planned for.
 
 ---
 
@@ -397,3 +439,4 @@ decided within 24 hours of hardware arrival.
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 0.1 | 2026-08-10 | ML_IoT_Love50 | Initial baseline, pre-hardware |
+| 0.1.1 | 2026-08-16 | ML_IoT_Love50 | Added §0 Implementation status; resolved ASM-01 to CONFIRMED; flagged SYS-FR-002/010/033 and the §5 latency table as deviated-from by the deployed system. No `SYS-*` requirement text changed. |

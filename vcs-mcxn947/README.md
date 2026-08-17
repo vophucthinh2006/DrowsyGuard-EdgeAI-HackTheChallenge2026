@@ -13,9 +13,12 @@ override with `NPX_WORKSPACE=...`) — the same one used by two other MCXN947 pr
 machine, `touch_rgb` and `wifi_sensing_npu`, whose build/pin-mux conventions this project follows.
 See `build.sh` for exactly how it's located.
 
-**Status: bring-up build.** Builds clean (0 warnings, `-Werror`), not yet flashed/tested on the
-physical board+motors+CAN bus. See "What is NOT wired yet" below before treating anything here as
-verified.
+**Status: simplified + flashed on real hardware.** Builds clean (0 warnings, `-Werror`). CAN link
+to a real peer (Arduino UNO Q, `../dms-ap-uno-q/`) confirmed bidirectional on real hardware.
+**2026-08-15: scope trimmed to match the system block diagram exactly** — vibration motor, fan
+relay, hazard lamps, and the ACK/operator-re-arm/e-stop-sense buttons were removed; gas/brake
+(onboard SW2/SW3) and auto re-arm replace them. See "What changed" below and
+[`PINOUT.md`](PINOUT.md) for the current (and only) pin reference.
 
 ## Flashing and debugging
 
@@ -80,21 +83,27 @@ search and multiple simultaneous views of the same log, which is handy once you'
 
 - Brings up **FLEXCAN0 at 500 kbit/s** and speaks the exact wire format in
   [spec 04](../specs/04-interface-control-document.md): decodes `DMS_STATUS` /
-  `DMS_METRICS`, transmits `VCS_STATUS` at 10 Hz, triple-sends `VCS_EVENT` (ACK / re-arm) and
-  `EMERGENCY_STOP` per CAN-040, runs the CRC-8 + timeout supervisor (300 ms degrade / 1000 ms
-  safe-stop, CAN-060..066).
+  `DMS_METRICS`, transmits `VCS_STATUS` at 10 Hz, triple-sends `EMERGENCY_STOP` per CAN-040, runs
+  the CRC-8 + timeout supervisor (300 ms degrade / 1000 ms safe-stop, CAN-060..066).
 - Runs the **vehicle state machine** from spec 05 §3 (`INIT → DISARMED → ARMED_IDLE → RUN ⇄
-  LIMITED → DECEL → STOPPED`, plus `FAULT`/`ESTOP`), with the safety rules that matter most:
-  absence of a valid CAN frame is never treated as "driver is fine" (CAN-063), a completed safe
-  stop never resumes on alert level alone (VEH-012), a watchdog reset always comes up disarmed
-  (VEH-053).
+  LIMITED → DECEL → STOPPED`, plus `FAULT`/`ESTOP`): absence of a valid CAN frame is never treated
+  as "driver is fine" (CAN-063), a watchdog reset always comes up disarmed (VEH-053). **Re-arm out
+  of STOPPED/FAULT/ESTOP is automatic** (2026-08-15) — no operator button exists on this board
+  anymore, so `safety.c`'s `SafeConditionsSustained()` auto-recovers once the CAN link is OK and
+  the alert level has been back at L0/Normal continuously for 1 s. This is a deliberate trade
+  against spec 05 VEH-012's original "level alone never leaves STOPPED" principle, not an
+  oversight — see `PINOUT.md`'s "Removed" section.
+- Reads **gas (SW2) / brake (SW3)**, the board's own onboard buttons, and ramps a persistent
+  throttle setpoint accordingly (20 %/s accelerate, 40 %/s decelerate, mutually exclusive, brake
+  wins on a simultaneous press) — feeds `ARMED_IDLE → RUN` (VEH-011) and `dg_throttle_setpoint_t`.
 - Drives **2 independent motor channels** (differential drive) through 2 BTS7960 half-bridge
   modules — 4 PWM outputs total (`RPWM`/`LPWM` per channel) plus one shared enable GPIO, per spec
   05 VEH-001/VEH-001a — with the speed cap table, 40 %/s ramp limiter, and the 1500 ms ramp + 500 ms
   brake + disable safe-stop sequence from spec 05 §4/§6.
-- Runs the **alert pattern engine** from spec 05 §5 — buzzer tone (frequency-agile PWM), 3-colour
-  status LED, vibration, fan relay, hazard lamps — as one non-blocking state machine driven by the
-  10 ms control tick (no `delay()` anywhere in the alert or motion path).
+- Runs the **alert pattern engine** from spec 05 §5 — buzzer tone (frequency-agile PWM) + 3-colour
+  status LED only (vibration/fan/hazard removed 2026-08-15, not in the system block diagram) — as
+  one non-blocking state machine driven by the 10 ms control tick (no `delay()` anywhere in the
+  alert or motion path).
 - Services a **500 ms window watchdog (WWDT0)** from the control task only, after a full iteration
   completes, and detects+reports a watchdog-induced reset at boot.
 - Runs a **UART CAN-frame simulator** (`src/sim_uart/`) on the same debug console UART, so the
@@ -129,63 +138,21 @@ then type `help` for the full list. The essentials:
 | `estop 1\|2\|3\|4` | Inject `EMERGENCY_STOP` (1=physical 2=dms 3=vcs 4=operator) |
 | `status` | Print `vehicle_state` / motion duty / link state / faults as text |
 
-A typical bring-up sequence once flashed: `calib on`, then press the physical re-arm button
-(`ARMED_IDLE`), `l0` (still `ARMED_IDLE` until a throttle input exists — see "What is NOT wired
-yet"), `l2` and watch the amber/red LED + intermittent vibration start, `l3` and watch the safe-stop
-ramp → brake → `STOPPED`, then press re-arm again (VEH-012: level alone never leaves `STOPPED`).
+A typical bring-up sequence once flashed: `calib on` auto-arms into `ARMED_IDLE` (no button needed
+anymore, see "What this firmware actually does"), hold **SW2 (gas)** to reach `RUN`, `l2` and
+watch the amber/red LED start, `l3` and watch the safe-stop ramp → brake → `STOPPED` — it
+auto-recovers back to `ARMED_IDLE` on its own once `l0` has held for 1 s (no button press needed).
 
-## Pin assignment (verified, not guessed)
+## Pin assignment
 
-Every physical pin below is cross-referenced against a real source — either the SDK's own
-`examples/_boards/frdmmcxn947/driver_examples/...` reference examples (which the `NPX_Workspace`
-toolchain can build against directly, so the ALT values are known-correct for this exact SDK
-checkout) or the **FRDM-MCXN947 User Manual (UM12018) Arduino header tables** (17–20), cross-checked
-for the "Potential conflict" column so nothing here collides with the on-board RGB LED or MCU-Link
-debug UART. See `board_port/pin_mux.c` for the per-pin comment trail.
-
-| Signal | Pin | Peripheral | Source |
-|---|---|---|---|
-| CAN0 TXD | PORT1_10 (ALT11) | FLEXCAN0 | SDK `flexcan/interrupt_transfer` example + UM12018 "FlexCAN interface schematic" / Table 14 (`P1_10/CAN0_TXD`) — **matches the schematic screenshot supplied for this task** |
-| CAN0 RXD | PORT1_11 (ALT11) | FLEXCAN0 | same as above (`P1_11/CAN0_RXD`) |
-| Motor L RPWM | PORT2_6 / J3-15 (ALT5) | PWM1 SM0 A | SDK `pwm` (pwm_3ph) example |
-| Motor L LPWM | PORT2_7 / J3-13 (ALT5) | PWM1 SM0 B | SDK `littlefs_shell`/`qdc` pin tables (PIO2_7 ALT5 = PWM1_B0); previously reserved as a spare, now used by BTS7960 |
-| Motor R RPWM | PORT2_4 / J3-11 (ALT5) | PWM1 SM1 A | SDK `pwm` example |
-| Motor R LPWM | PORT2_0 / J3-1 (ALT5) | PWM1 SM3 A | SM1's own B channel (PWM1_B1) is routed to on-board FLEXSPI0 flash, not the header — see `board_port/pin_mux.c`; `project_template/pin_mux.c` labels PORT2_0 as `P2_0/J3[1]` |
-| Buzzer tone | PORT2_2 / J3-7 (ALT5) | PWM1 SM2 A | SDK `pwm` example |
-| Status LED red | PORT0_10, active-low | GPIO0.10 | matches `touch_rgb`, `wifi_sensing_npu` in `NPX_Workspace`; UM12018 Table 18 J2-4 `LED_RED` |
-| Status LED green | PORT0_27, active-low | GPIO0.27 | same; UM12018 Table 18 J2-6 `LED_GREEN` |
-| Status LED blue | PORT1_2, active-low | GPIO1.2 | same; UM12018 Table 17 J1-14 `LED_BLUE` |
-| Driver EN (shared `R_EN`+`L_EN`, both BTS7960 modules) | PORT0_28 — J2-D8 | GPIO0.28, active-high | UM12018 Table 18. `PORT0_29`/`PORT1_23`/`PORT0_30`/`PORT0_31` (previously motor direction GPIOs) are now free/unused since BTS7960 uses PWM `RPWM`/`LPWM` instead of direction pins. |
-| Vibration motor | PORT0_24 — J2-D11 | GPIO0.24 | UM12018 Table 18 |
-| Fan relay | PORT0_26 — J2-D12 | GPIO0.26 | UM12018 Table 18 |
-| Hazard L | PORT0_25 — J2-D13 | GPIO0.25 | UM12018 Table 18 |
-| Hazard R | PORT4_0 — J2-D18 | GPIO4.0 | UM12018 Table 18 |
-| ACK button ("I am awake") | PORT4_1 — J2-D19, pull-up | GPIO4.1, active-low | UM12018 Table 18 |
-| Operator re-arm | PORT2_3 — J3-5, pull-up | GPIO2.3, active-low | UM12018 Table 19 |
-| E-stop sense | PORT2_5 — J3-9, pull-up | GPIO2.5 | UM12018 Table 19 — see wiring note below |
-
-**On-board CAN transceiver:** the FRDM-MCXN947 already has a TJA1057GTK/3Z transceiver wired from
-PORT1_10/11 out to header **J10** (`CAN1_H`, `CAN1_L`, `P5V0`, `GND`) — confirmed against the
-board's own schematic, so **no external CAN transceiver is needed on the VCS side.** External
-120 Ω termination is still required at each physical bus end per CAN-002 — the board does not
-provide it.
-
-Note this only resolves the VCS half of the link.
-[Spec 04 OI-04-01](../specs/04-interface-control-document.md#9-open-items) — whether
-the **DMS** side (STM32U585 on the Arduino UNO Q) exposes FDCAN on header-reachable pins — is
-unrelated to this board and is **still open**; nothing in this session touched the DMS/UNO Q side.
-
-**E-stop wiring note:** `ESTOP_SENSE` is pulled up in firmware and treated as "asserted" when the
-line reads high. Per [spec 05 VEH-074](../specs/05-vehicle-control-spec.md#9-power-and-wiring)
-the *authoritative* e-stop cuts the motor supply directly and does not depend on this firmware at
-all — this GPIO is only how software finds out an e-stop happened, e.g. to report it over CAN and
-refuse to silently resume.
+**See [`PINOUT.md`](PINOUT.md) — the single source of truth for every pin on this board**,
+cross-referenced against UM12018 (FRDM-MCXN947 Board User Manual) Tables 4/17-19, matching the
+system block diagram exactly (CAN, 2x BTS7960, buzzer+LED, gas/brake — nothing else). The DMS
+side (Arduino UNO Q, external CAN transceiver + its own D4/D5 pins) is documented in
+`../dms-ap-uno-q/README.md`.
 
 ## What is NOT wired yet (do not treat as done)
 
-- **No physical throttle input.** `ARMED_IDLE → RUN` currently requires holding the re-arm button
-  (see the `TODO` in `src/main.c`) — there is no pedal/lever signal defined. `dg_throttle_setpoint_t`
-  in `ControlTask()` is a fixed bench value, not read from hardware.
 - **Motor current/rail voltage sensing is not wired** ([spec 05 OI-05-01/OI-05-02](../specs/05-vehicle-control-spec.md#10-open-items)).
   `safety.c` treats a reading of exactly 0 as "not wired" and never raises `fault_driver` /
   `fault_undervoltage` from it — this is a deliberate guard, not a bug, but it means the stall and
@@ -220,7 +187,7 @@ vcs-mcxn947/
 │   ├── can_link/           # FlexCAN0 driver, timeout supervisor, event repeaters
 │   ├── safety/             # vehicle state machine, watchdog, fault evaluation
 │   ├── motion/             # PWM motor drive, speed governor, safe-stop sequencer
-│   ├── alerts/              # buzzer/LED/vibration/fan/hazard pattern engine
+│   ├── alerts/              # buzzer/LED pattern engine
 │   └── sim_uart/            # UART CAN-frame simulator (bring-up aid, not in VEH-060's task table)
 └── build.sh               # same build/flash pattern as NPX_Workspace/{touch_rgb,wifi_sensing_npu}
 ```
@@ -239,7 +206,9 @@ repository layout exactly.
    levels, bit-time measurement — **before** connecting a second node.
 3. Wire the BTS7960 motor driver stage and re-measure `MOTION_MIN_MOVE_DUTY` on the loaded chassis
    (`TC-VEH-001`).
-4. Get the DMS-AP (Arduino UNO Q) side transmitting real `DMS_STATUS` frames over the physical bus
-   — or use `tools/can_inject.py` (spec 06 §3.2) — to validate the actual FLEXCAN0 RX path (mailboxes,
-   CRC, bus timing), which the UART simulator in step 1 deliberately bypasses.
-5. Wire a real throttle/enable input and delete the bench-only `TODO` in `main.c`.
+4. Get the DMS-AP (Arduino UNO Q, `../dms-ap-uno-q/`) side transmitting real `DMS_STATUS` frames
+   over the physical bus — **done, confirmed working 2026-08-15** — to validate the actual
+   FLEXCAN0 RX path (mailboxes, CRC, bus timing), which the UART simulator in step 1 deliberately
+   bypasses.
+5. ~~Wire a real throttle/enable input~~ — **done**: gas/brake (onboard SW2/SW3), see
+   `PINOUT.md`.

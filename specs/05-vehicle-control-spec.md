@@ -7,6 +7,40 @@ alerts, and fail safe when anything goes wrong.
 
 ---
 
+## 0. Implementation status — what is actually running today (added 2026-08-16)
+
+On **2026-08-15** the built firmware's hardware scope was deliberately trimmed to match
+the system block diagram exactly. **`vcs-mcxn947/PINOUT.md` is the current single source
+of truth for every pin on the board** — this document's §2.2 pin table below predates
+that trim and is now partly aspirational. Concretely:
+
+- **Removed, not implemented**: vibration motor (§2.2's `PORT0_24`), fan relay
+  (`PORT0_26`), hazard lamps (`PORT0_25`/`PORT4_0`), ACK button (`PORT4_1`), operator
+  re-arm button (`PORT2_3`), e-stop-sense loop (`PORT2_5`). None of these exist in the
+  built hardware or firmware.
+- **Added, not in this document**: gas (`SW2`, onboard button, `P0_23`) and brake
+  (`SW3`, onboard button, `P0_6`) — see `PINOUT.md` — which now drive the throttle
+  setpoint that used to require an external input this document doesn't define.
+- **Re-arm out of `STOPPED`/`FAULT`/`ESTOP` is automatic**, not the explicit operator
+  input **VEH-012** requires below: `safety.c`'s `SafeConditionsSustained()` clears these
+  states once the alert level has held at L0 with a valid CAN link for 1 continuous
+  second (`AUTO_REARM_HOLD_MS = 1000`). This is flagged as a genuine deviation from
+  VEH-012's safety intent in `vcs-mcxn947/README.md`, not a documentation gap — see the
+  inline note at VEH-012 below.
+- **The initial `DISARMED → ARMED_IDLE` arm is also automatic**, not gated by a separate
+  operator arm input as VEH-011 describes: per `vcs-mcxn947/README.md`, setting
+  `calib_done` alone (`calib on` in the UART test console) auto-arms into
+  `ARMED_IDLE` — "no button needed anymore" — because no arm button exists on this
+  board.
+- **VEH-030's Vibration/Fan/Hazard columns are not implemented.** Only Buzzer and
+  Status LED actuation exist in the built firmware.
+
+None of the normative text below has been rewritten to match — this section exists so
+the gap is visible in one place. See also
+[01 §0](01-system-requirements.md#0-implementation-status--what-is-actually-running-today-added-2026-08-16).
+
+---
+
 ## 1. Scope and a necessary disclaimer
 
 The VCS drives a four-wheel scale platform. It **simulates** a vehicle's response to driver
@@ -82,6 +116,11 @@ passes through zero is expected, not a bug.*
 either an SDK reference example this workspace can build, or the FRDM-MCXN947 UM12018 Arduino
 header tables (17–20) for conflicts — none are guessed.
 
+> **⚠️ Table below predates the 2026-08-15 hardware trim — see [§0](#0-implementation-status--what-is-actually-running-today-added-2026-08-16).**
+> The Hazard lamps / Vibration motor / Fan relay / ACK button / Operator re-arm / E-stop
+> sense rows are **not built**; `vcs-mcxn947/PINOUT.md` is now the source of truth and
+> also documents the Gas (`SW2`)/Brake (`SW3`) onboard buttons that replaced them.
+
 | Function | Peripheral | Pin | Notes |
 |---|---|---|---|
 | Motor L RPWM / LPWM | PWM1 (eFlexPWM) SM0, channel A / B | PORT2_6 / PORT2_7 (J3-15 / J3-13), ALT5 | One submodule, 2 independent channels — VEH-001a |
@@ -112,6 +151,9 @@ same workspace even though this project doesn't use the touch pad itself.)
 ---
 
 ## 3. State machine — **NORMATIVE**
+
+> Every "operator re-arm" transition below is now automatic (1 s continuously at L0 +
+> CAN link OK), not button-driven — see [§0](#0-implementation-status--what-is-actually-running-today-added-2026-08-16).
 
 ```
         power on
@@ -159,9 +201,18 @@ same workspace even though this project doesn't use the touch pad itself.)
 **VEH-011** — Transition `DISARMED → ARMED_IDLE` SHALL require **both** an operator arm input and
 `flag_calib_done == 1` in a valid `DMS_STATUS`
 ([CAN-014](04-interface-control-document.md#3-0x100-dms_status--the-safety-relevant-message)).
+**⚠️ Deviated from**: there is no operator arm button on the built board; `calib_done == 1` alone
+auto-arms `DISARMED → ARMED_IDLE` — see [§0](#0-implementation-status--what-is-actually-running-today-added-2026-08-16).
 
 **VEH-012** — `STOPPED` SHALL NOT be exited on alert level alone. Only an explicit operator re-arm
 leaves it ([SYS-FR-033](01-system-requirements.md#44-vehicle-simulation)).
+**⚠️ Deviated from**: no operator re-arm button exists on the built board. `STOPPED`/`FAULT`/`ESTOP`
+now clear automatically once alert level has held L0 with a valid CAN link for 1 continuous second
+(`safety.c`'s `SafeConditionsSustained()`, `AUTO_REARM_HOLD_MS = 1000`) — acknowledged in
+`vcs-mcxn947/README.md` as a deliberate product trade-off against this requirement's own rationale
+("automatically resuming after an unconsciousness event would be actively dangerous"), not an
+oversight, but still open as a safety-relevant gap between spec and firmware — see
+[§0](#0-implementation-status--what-is-actually-running-today-added-2026-08-16).
 
 **VEH-013** — `ESTOP` SHALL be enterable from every state, in one control cycle, with no ramp.
 
@@ -214,6 +265,10 @@ with `MIN_MOVE_DUTY = 25`. This SHALL be re-measured on the actual chassis and r
 ## 5. Alert actuation
 
 **VEH-030** — Per-level actuation — **NORMATIVE**:
+
+> **⚠️ Vibration/Fan relay/Hazard columns are not implemented** — that hardware was removed
+> 2026-08-15, see [§0](#0-implementation-status--what-is-actually-running-today-added-2026-08-16).
+> Only Buzzer and Status LED actuation are built.
 
 | Level | Buzzer | Status LED | Vibration | Fan relay | Hazard | Speed |
 |---|---|---|---|---|---|---|
@@ -269,7 +324,8 @@ without measuring it would be a fabricated number.
 platform causes a spin, which is exactly the wrong behaviour to demonstrate.
 
 **VEH-043** — Once phase 3 is entered, the VCS SHALL enter `STOPPED` and SHALL ignore all
-`alert_level` values until an operator re-arm (VEH-012).
+`alert_level` values until an operator re-arm (VEH-012 — see that requirement's note on the
+deployed automatic-re-arm deviation).
 
 **VEH-044** — A safe stop already in progress SHALL NOT be abortable by a lower alert level
 arriving mid-ramp. It SHALL run to completion.
@@ -378,6 +434,7 @@ SHALL be a latching mushroom-head switch.
 | OI-05-04 | Verify 85 dB(A) limit by measurement | Test | Before demo |
 | ~~OI-05-05~~ | ~~Confirm chosen pins do not collide with `pin_mux.c` defaults or PIO1_3~~ **Closed** — full pin assignment implemented in `vcs-mcxn947/board_port/pin_mux.c`, cross-checked against UM12018 Tables 17–20 and the SDK's own reference examples; builds clean. Physical wiring itself is still pending. | FW | Closed 2026-08-10 |
 | OI-05-06 | Characterise the actual deceleration profile from the 1500 ms duty ramp (VEH-041) | Test | Before demo |
+| OI-05-07 ⚠️ | VEH-011/012/030 no longer match the built firmware after the 2026-08-15 hardware trim (auto re-arm replaces operator button; vibration/fan/hazard removed). Either reinstate the hardware or formally revise these requirements — currently only flagged inline, see §0 | FW/Spec | Open |
 
 ---
 
@@ -388,3 +445,4 @@ SHALL be a latching mushroom-head switch.
 | 0.1 | 2026-08-10 | ML_IoT_Love50 | Initial baseline |
 | 0.2 | 2026-08-10 | ML_IoT_Love50 | §2.2 pin table replaced with the implemented, cross-referenced assignment from `vcs-mcxn947/`. OI-05-05 closed. Firmware builds clean; not yet flashed/measured (no §10/§8 items below are closed by this). |
 | 0.3 | 2026-08-14 | ML_IoT_Love50 | Driver decided as BTS7960 (VEH-001/VEH-001a), replacing the TB6612FNG/L298N choice. §2.2 pin table updated: `RPWM`/`LPWM` per channel (PWM1 SM0 A/B for left, SM1 A + SM3 A for right) replace the single-PWM+direction-GPIO interface; shared STBY becomes shared `R_EN`/`L_EN` enable. OI-05-03 closed. `vcs-mcxn947/src/motion` and `board_port/` updated to match. |
+| 0.3.1 | 2026-08-16 | ML_IoT_Love50 | Added §0 Implementation status documenting the 2026-08-15 hardware trim (vibration/fan/hazard/ACK/re-arm-button/e-stop-sense removed; gas/brake buttons added; re-arm now automatic). Flagged VEH-011/012/030/043 and §2.2's pin table inline. Added OI-05-07. No normative requirement text changed. |

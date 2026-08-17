@@ -48,11 +48,10 @@
 void BOARD_InitBootPins(void) { BOARD_InitPins(); }
 
 /* Generic ALT0 GPIO electrical config, reused for every plain digital pin
- * below (driver enable, vibration/fan/hazard outputs, ACK/re-arm/e-stop
- * inputs). Slew/drive kept at the same "fast / low" defaults the
- * MCUXpresso Config Tool uses elsewhere in this workspace (touch_rgb,
- * wifi_sensing_npu) so nothing here is a new, unreviewed electrical
- * choice. */
+ * below (driver enable, gas/brake inputs). Slew/drive kept at the same
+ * "fast / low" defaults the MCUXpresso Config Tool uses elsewhere in this
+ * workspace (touch_rgb, wifi_sensing_npu) so nothing here is a new,
+ * unreviewed electrical choice. */
 static const port_pin_config_t kGpioOutConfig = {
     kPORT_PullDisable, kPORT_LowPullResistor, kPORT_FastSlewRate,
     kPORT_PassiveFilterDisable, kPORT_OpenDrainDisable, kPORT_LowDriveStrength,
@@ -62,13 +61,6 @@ static const port_pin_config_t kGpioInPullUpConfig = {
     kPORT_PullUp, kPORT_LowPullResistor, kPORT_FastSlewRate,
     kPORT_PassiveFilterDisable, kPORT_OpenDrainDisable, kPORT_LowDriveStrength,
     kPORT_MuxAlt0, kPORT_InputBufferEnable, kPORT_InputNormal, kPORT_UnlockRegister};
-
-/* E-stop sense is a normally-closed loop to ground on this design (see
- * README "E-stop wiring") — pulled up so an open loop (button pressed /
- * wire cut) reads high = asserted, and an intact loop reads low. Same
- * electrical shape as the ACK/re-arm buttons, kept as its own name so the
- * two are not accidentally merged if the wiring convention changes. */
-#define kGpioEstopSenseConfig kGpioInPullUpConfig
 
 static void InitGpioOutput(PORT_Type *port, GPIO_Type *gpio, uint32_t pin,
                             uint32_t initLogic) {
@@ -85,14 +77,17 @@ static void InitGpioInput(PORT_Type *port, GPIO_Type *gpio, uint32_t pin,
 }
 
 void BOARD_InitPins(void) {
+  /* PORT2 stays enabled for PWM1 pin muxing (motor + buzzer channels below)
+   * even though nothing on PORT2 is read/written as plain GPIO anymore
+   * (REARM_BUTTON/ESTOP_SENSE removed 2026-08-15) -- GPIO2's own peripheral
+   * clock, only needed for GPIO_PinRead/Write on that port, is dropped.
+   * Likewise PORT4/GPIO4 (ACK_BUTTON/HAZARD_R, also removed) is dropped
+   * entirely -- nothing on this board uses PORT4 anymore. */
   CLOCK_EnableClock(kCLOCK_Port0);
   CLOCK_EnableClock(kCLOCK_Port1);
   CLOCK_EnableClock(kCLOCK_Port2);
-  CLOCK_EnableClock(kCLOCK_Port4);
   CLOCK_EnableClock(kCLOCK_Gpio0);
   CLOCK_EnableClock(kCLOCK_Gpio1);
-  CLOCK_EnableClock(kCLOCK_Gpio2);
-  CLOCK_EnableClock(kCLOCK_Gpio4);
 
   /* ---- Debug console (LPUART4 / FLEXCOMM4), MCU-Link virtual COM port ---
    * hardware_init.c clocks and attaches FLEXCOMM4 and calls
@@ -144,14 +139,7 @@ void BOARD_InitPins(void) {
    * plain GPIO. Header pin per UM12018 Table 18, no listed conflict. ------ */
   InitGpioOutput(PORT0, GPIO0, 28U, 0U); /* shared R_EN+L_EN, active-high -- J2-D8 */
 
-  /* ---- Alert actuators (specs/05 §5) ------------------------------------ */
-  InitGpioOutput(PORT0, GPIO0, 24U, 0U); /* vibration motor (through a low-side switch) -- J2-D11 */
-  InitGpioOutput(PORT0, GPIO0, 26U, 0U); /* fan relay (through opto/relay module) -- J2-D12 */
-  InitGpioOutput(PORT0, GPIO0, 25U, 0U); /* hazard lamp, left -- J2-D13 */
-  InitGpioOutput(PORT4, GPIO4, 0U, 0U);  /* hazard lamp, right -- J2-D18 */
-
-  /* ---- Driver / operator inputs ----------------------------------------- */
-  InitGpioInput(PORT4, GPIO4, 1U, &kGpioInPullUpConfig); /* ACK "I am awake" -- J2-D19, active-low */
-  InitGpioInput(PORT2, GPIO2, 3U, &kGpioInPullUpConfig); /* operator arm/re-arm -- J3-5, active-low */
-  InitGpioInput(PORT2, GPIO2, 5U, &kGpioEstopSenseConfig); /* e-stop sense loop -- J3-9, see file header */
+  /* ---- Gas/brake pedal simulation -- onboard SW2/SW3, active-low -------- */
+  InitGpioInput(PORT0, GPIO0, 23U, &kGpioInPullUpConfig); /* SW2 "Wakeup" button, reused as GAS */
+  InitGpioInput(PORT0, GPIO0, 6U, &kGpioInPullUpConfig);  /* SW3 "ISP mode" button, reused as BRAKE */
 }

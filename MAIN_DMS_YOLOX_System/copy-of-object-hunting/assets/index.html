@@ -1,0 +1,192 @@
+<!--
+SPDX-FileCopyrightText: Copyright (C) Arduino s.r.l. and/or its affiliated companies
+
+SPDX-License-Identifier: MPL-2.0
+-->
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DrowsyGuard — MAIN DMS System</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+  </head>
+  <body class="level-l0">
+    <div class="top-nav-bar">
+      <div class="nav-brand">
+        <span class="nav-dot"></span> DROWSYGUARD DMS
+      </div>
+      <div class="nav-tabs">
+        <button class="nav-tab active" data-tab="tab-dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 2a10 10 0 00-10 10c0 5.5 4.5 10 10 10s10-4.5 10-10A10 10 0 0012 2zm0 18a8 8 0 110-16 8 8 0 010 16z"/><path d="M12 6v6l4 2"/></svg>
+          Dashboard Cluster
+        </button>
+        <button class="nav-tab" data-tab="tab-camera">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Camera AI Vision
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 1: DASHBOARD CLUSTER -->
+    <div id="tab-dashboard" class="tab-page active">
+      <div class="cluster">
+        <div class="stars" id="stars"></div>
+
+        <div class="app-dock">
+          <div class="app-icon accent" title="Phone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1.9.3 1.8.6 2.7a2 2 0 01-.5 2.1L8 9.7a16 16 0 006 6l1.2-1.2a2 2 0 012.1-.5c.9.3 1.8.5 2.7.6a2 2 0 011.7 2z"/></svg>
+          </div>
+          <div class="app-icon" title="Music">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          </div>
+          <div class="app-icon" title="Bluetooth">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg>
+          </div>
+          <div class="app-icon" title="Dashcam">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="15" height="12" rx="2"/><path d="M17 10l5-3v10l-5-3z"/></svg>
+          </div>
+          <div class="app-icon" title="Navigation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+          </div>
+          <div class="app-icon" title="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </div>
+        </div>
+
+        <div class="top-strip">
+          <div class="top-left">
+            <div class="wordmark"><span class="dot"></span> DROWSYGUARD</div>
+            <div class="indicator">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+              FUEL 3/4
+            </div>
+            <div class="indicator">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 2a5 5 0 015 5c0 3-2 4-2 7h-6c0-3-2-4-2-7a5 5 0 015-5z"/><path d="M9 21h6"/></svg>
+              24&deg;C
+            </div>
+          </div>
+          <div class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">MONITORING</span></div>
+          <div class="top-right">
+            <div class="night-pill">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+              NIGHT MODE
+            </div>
+          </div>
+        </div>
+
+        <div class="clock-dock">
+          <div class="moon-row">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            <span class="lbl">NIGHT DRIVE</span>
+          </div>
+          <div class="time" id="clockTime">00:00:00</div>
+          <div class="date" id="clockDate">SAT · AUG 15</div>
+        </div>
+
+        <div class="gauge-wrap">
+          <div class="gauge">
+            <svg viewBox="0 0 400 400">
+              <path class="arc-track" id="arcTrack" />
+              <path class="arc-fill" id="arcFill" />
+              <g id="ticks"></g>
+            </svg>
+            <div class="needle" id="needle"></div>
+            <div class="hub"></div>
+            <div class="readout">
+              <div class="num" id="speedNum">0</div>
+              <div class="unit">KM/H</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="indicator-row">
+          <div class="lamp"><svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path d="M2 12l10-8v5h10v6H12v5z"/></svg><span class="lbl">LEFT</span></div>
+          <div class="lamp on green"><svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path d="M12 2a5 5 0 00-5 5v4H5v9a2 2 0 002 2h10a2 2 0 002-2v-9h-2V7a5 5 0 00-5-5zm-3 9V7a3 3 0 016 0v4H9z"/></svg><span class="lbl">BELT</span></div>
+          <div class="lamp"><svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><path d="M22 12L12 4v5H2v6h10v5z"/></svg><span class="lbl">RIGHT</span></div>
+        </div>
+
+        <!-- ALERT OVERLAY LAYER (TOUCH/CLICK TO DISMISS) -->
+        <div class="alert-layer" id="alertLayer">
+          <div class="tint-l2"></div>
+          <div class="ring-l2"></div>
+          <div class="ring-l3"></div>
+          <div class="flash-l3"></div>
+
+          <div class="banner-l1" id="bannerL1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" width="24" height="24"><path d="M12 3l10 18H2z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg>
+            <span>STAY FOCUSED — EYES ON THE ROAD</span>
+            <div class="dismiss-hint">(CHẠM ĐỂ TẮT)</div>
+          </div>
+
+          <div class="banner-l2" id="bannerL2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" width="24" height="24"><path d="M12 3l10 18H2z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg>
+            <span>DROWSINESS WARNING — TAKE A BREAK SOON</span>
+            <div class="dismiss-hint">(CHẠM ĐỂ TẮT)</div>
+          </div>
+
+          <div class="modal-l3" id="modalL3">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l10 18H2z"/><path d="M12 9.5v5"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor"/></svg>
+            <div class="title">DROWSINESS DETECTED</div>
+            <div class="sub">PULL OVER SAFELY</div>
+            <div class="dismiss-btn-box">CHẠM VÀO MÀN HÌNH ĐỂ TẮT CẢNH BÁO</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: CAMERA AI FEED & BOUNDING BOX -->
+    <div id="tab-camera" class="tab-page">
+      <div class="camera-layout">
+        <div class="video-container-wrapper">
+          <div id="videoFeedContainer">
+            <div id="videoPlaceholder" class="camera-status">
+              <img src="./img/no-face.svg" alt="Searching camera" />
+              <p class="feedback-text">Searching Camera Stream...</p>
+            </div>
+            <iframe id="dynamicIframe" title="Video stream" width="100%" height="100%" frameborder="0"></iframe>
+            <canvas id="bboxCanvas"></canvas>
+          </div>
+        </div>
+
+        <div class="camera-side-panel">
+          <div class="panel-card">
+            <h3>AI Detection Stats</h3>
+            <div class="stat-row">
+              <span class="stat-lbl">Camera Status:</span>
+              <span class="stat-val green" id="camStatus">ACTIVE</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">Inference FPS:</span>
+              <span class="stat-val" id="fpsVal">--</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-lbl">Detections Count:</span>
+              <span class="stat-val" id="detCount">0</span>
+            </div>
+            <div class="recent-detections-box">
+              <h4>Live Detections Log:</h4>
+              <ul id="detectionLog"></ul>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <h3>AI Threshold Control</h3>
+            <div class="control-confidence">
+              <label for="confidenceSlider">Confidence Threshold:</label>
+              <span id="confidenceValueDisplay">0.50</span>
+            </div>
+            <input type="range" id="confidenceSlider" min="0" max="1" step="0.05" value="0.5" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="error-container" class="error-message" style="display: none"></div>
+
+    <script src="libs/socket.io.min.js"></script>
+    <script src="libs/arduino.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -27,7 +27,19 @@ static uint32_t s_overcurrentSinceMs; /* 0 = "not currently over limit" */
 static uint32_t s_undervoltSinceMs;
 
 static bool s_canEstopLatched = false;
-static bool s_rearmWasPressed = false;
+
+/* Auto-recovery replaces the old operator-re-arm-button gate (2026-08-15,
+ * system block diagram simplification -- no re-arm/ACK/e-stop-sense
+ * buttons exist on this board anymore, only gas/brake). AUTO_REARM_HOLD_MS
+ * requires the safe condition to hold continuously for this long before a
+ * STOPPED/FAULT/ESTOP recovery transition fires, so a single good frame
+ * after a bad stretch can't immediately bounce the vehicle back into
+ * motion -- the closest equivalent left to the debounce a physical button
+ * press used to provide. This is a deliberate trade against VEH-012's
+ * original "level alone never leaves STOPPED" principle (product decision,
+ * not a firmware bug) -- see README. */
+#define AUTO_REARM_HOLD_MS (1000U)
+static uint32_t s_safeSinceMs; /* 0 = "not currently in a sustained-safe window" */
 
 
 /* Motion/alert modules read this indirectly through Safety_GetState(); the
@@ -111,20 +123,27 @@ static void EvaluateFaults(uint32_t now_ms, const dg_safety_inputs_t *in) {
     s_undervoltSinceMs = 0U;
   }
 
-  s_faults.estop_active = in->estop_sense_asserted;
-
   dg_estop_reason_t reason;
   if (CanLink_EmergencyStopReceived(&reason)) {
     s_canEstopLatched = true;
     CanLink_ClearEmergencyStopReceived();
   }
-  
-  if (s_canEstopLatched) {
-    s_faults.estop_active = true;
-  }
+  /* Only source of estop_active left after removing the physical e-stop
+   * sense loop (2026-08-15): a CAN-received EMERGENCY_STOP. Physical e-stop
+   * is now purely electrical (cuts actuator power directly, see the system
+   * block diagram's "Physical E-Stop" note inside Vehicle Actuators) --
+   * this firmware never senses it, by design. */
+  s_faults.estop_active = s_canEstopLatched;
 
+  /* fault_can_timeout only means something once a DMS-AP peer has actually
+   * been seen at least once (2026-08-15: standalone gas/brake-only bench
+   * testing, no CAN peer ever attached, must not be treated as a timeout
+   * fault -- see Safety_Tick()'s level-fallback comment for the matching
+   * logic on the vehicle-state side). */
+  dg_dms_status_t dmsUnused;
+  bool everHadDms = CanLink_GetLatestDmsStatus(&dmsUnused);
   dg_link_state_t link = CanLink_GetLinkState();
-  s_faults.fault_can_timeout = (link == kDgLinkLost);
+  s_faults.fault_can_timeout = everHadDms && (link == kDgLinkLost);
 }
 
 static bool AnyFaultActive(void) {
@@ -132,8 +151,26 @@ static bool AnyFaultActive(void) {
          s_faults.fault_undervoltage;
   /* fault_watchdog_reset and estop_active are surfaced but handled by their
    * own explicit transitions below, not folded into the generic FAULT path
-   * — an e-stop goes to ESTOP (recoverable by release+re-arm), a stale
-   * watchdog flag alone does not re-trigger FAULT after the 5 s window. */
+   * — an e-stop goes to ESTOP (recoverable once conditions are safe again),
+   * a stale watchdog flag alone does not re-trigger FAULT after the 5 s
+   * window. */
+}
+
+/* True once a driver-known, CAN-link-OK, L0/Normal condition has held
+ * continuously for AUTO_REARM_HOLD_MS -- see that macro's comment for why.
+ * Drives every recovery transition (STOPPED/FAULT/ESTOP -> onward) now that
+ * no operator re-arm button exists on this board. */
+static bool SafeConditionsSustained(uint32_t now_ms, bool driverStateKnown,
+                                     dg_alert_level_t level, dg_link_state_t link) {
+  bool safeNow = driverStateKnown && (level == kDgAlertL0Normal) && (link == kDgLinkOk);
+  if (!safeNow) {
+    s_safeSinceMs = 0U;
+    return false;
+  }
+  if (s_safeSinceMs == 0U) {
+    s_safeSinceMs = now_ms;
+  }
+  return (now_ms - s_safeSinceMs) >= AUTO_REARM_HOLD_MS;
 }
 
 /* ---- state machine (VEH-010..014, DEV-027: one switch, default -> FAULT) - */
@@ -141,28 +178,59 @@ static bool AnyFaultActive(void) {
 void Safety_Tick(uint32_t now_ms, const dg_safety_inputs_t *inputs) {
   EvaluateFaults(now_ms, inputs);
 
-  bool rearmEdge = inputs->operator_rearm_pressed && !s_rearmWasPressed;
-  s_rearmWasPressed = inputs->operator_rearm_pressed;
-
   dg_dms_status_t dms;
   bool haveDms      = CanLink_GetLatestDmsStatus(&dms);
   dg_link_state_t link = CanLink_GetLinkState();
 
-  /* CAN-063: absence of a valid frame is NEVER L0. If we have never had a
-   * valid frame, or the link is currently lost, treat the driver state as
-   * unknown/worst-case for every decision below. */
+  /* CAN-063: absence of a valid frame is NEVER treated as "driver is fine"
+   * -- but only once a DMS-AP peer has been seen on the bus at least once.
+   * If no DMS-AP has EVER connected (haveDms stays false forever -- e.g.
+   * standalone gas/brake-only motor bench testing, 2026-08-15, no CAN peer
+   * attached at all), that's "no monitor attached yet", not "danger": SW2/
+   * SW3 alone can drive the motors without ever needing a CAN peer first.
+   * Once a DMS-AP HAS been seen and then goes silent, CAN-063's original
+   * strict fail-safe applies in full below (level forced to L3, a lost
+   * link forces DECEL) -- losing an established monitor is genuinely
+   * dangerous, "never had one" is not. */
   bool driverStateKnown = haveDms && (link != kDgLinkLost);
-  dg_alert_level_t level = driverStateKnown ? dms.alert_level : kDgAlertL3Danger;
-  bool calibDone          = haveDms && dms.flag_calib_done;
+  dg_alert_level_t level = driverStateKnown  ? dms.alert_level
+                            : haveDms        ? kDgAlertL3Danger
+                                              : kDgAlertL0Normal;
+  bool linkLostDangerous = haveDms && (link == kDgLinkLost);
+  bool autoRearm          = SafeConditionsSustained(now_ms, driverStateKnown, level, link);
 
-  /* E-stop pre-empts everything except INIT (still self-testing). */
-  if (s_state != kDgVehInit &&
-      (inputs->estop_sense_asserted || s_faults.estop_active)) {
+  /* E-stop pre-empts everything except INIT (still self-testing). Only
+   * source left is a CAN-received EMERGENCY_STOP (s_faults.estop_active) --
+   * see EvaluateFaults()'s comment on why the physical e-stop sense loop is
+   * gone. */
+  bool justEnteredEstop = false;
+  if (s_state != kDgVehInit && s_faults.estop_active) {
     if (s_state != kDgVehEstop) {
       PRINTF("[safety] -> ESTOP\r\n");
+      /* Bug found 2026-08-16: `autoRearm` above was computed from
+       * s_safeSinceMs as it stood BEFORE this e-stop -- if level/link had
+       * already been safe for >= AUTO_REARM_HOLD_MS a moment ago (the
+       * common case: sim_uart keeps re-injecting L0 regardless of estop
+       * commands), the switch below would see a stale autoRearm==true and
+       * fall straight through ESTOP -> DISARMED in this SAME tick, before
+       * ESTOP was ever actually observed as the settled state. Reset the
+       * timer here (the exact tick of entry) and gate the switch's
+       * recovery check on `justEnteredEstop` below so recovery always needs
+       * a fresh AUTO_REARM_HOLD_MS measured from this moment forward. */
+      s_safeSinceMs = 0U;
+      justEnteredEstop = true;
     }
     s_state = kDgVehEstop;
   }
+
+  /* Debug: log EVERY vehicle_state transition, not just the ones the switch
+   * below already PRINTFs individually -- added 2026-08-15 because
+   * RUN<->LIMITED (driven by alert_level/link from the DMS) had no log at
+   * all, making it impossible to see from the console whether a signal
+   * received from the UNO Q was actually changing anything. Generic
+   * before/after compare catches every transition regardless of which
+   * branch caused it. */
+  dg_vehicle_state_t stateBeforeTick = s_state;
 
   switch (s_state) {
     case kDgVehInit:
@@ -177,20 +245,16 @@ void Safety_Tick(uint32_t now_ms, const dg_safety_inputs_t *inputs) {
         s_state = kDgVehFault;
         break;
       }
-      /* VEH-011: needs both the operator re-arm button AND calib_done=1. */
-      if (inputs->operator_rearm_pressed && calibDone) {
-        s_state = kDgVehArmedIdle;
-        PRINTF("[safety] armed\r\n");
-      }
+      /* No re-arm button, no calib_done gate anymore (2026-08-15
+       * simplification -- was VEH-011's "button AND calib_done"). Arms
+       * immediately: gas/brake alone should drive the motors with nothing
+       * else to configure first. */
+      s_state = kDgVehArmedIdle;
       break;
 
     case kDgVehArmedIdle:
       if (AnyFaultActive()) {
         s_state = kDgVehFault;
-        break;
-      }
-      if (!calibDone) {
-        s_state = kDgVehDisarmed;
         break;
       }
       if (inputs->throttle_nonzero) {
@@ -216,14 +280,12 @@ void Safety_Tick(uint32_t now_ms, const dg_safety_inputs_t *inputs) {
         s_state = kDgVehFault;
         break;
       }
-      if (level == kDgAlertL3Danger || link == kDgLinkLost) {
+      if (level == kDgAlertL3Danger || linkLostDangerous) {
         s_state = kDgVehDecel; /* VEH-040, CAN-062 */
-        PRINTF("[safety] -> DECEL (level=%u link=%u)\r\n", (unsigned int)level,
-               (unsigned int)link);
         break;
       }
       if (level == kDgAlertL1Early || level == kDgAlertL2Drowsy ||
-          link == kDgLinkDegraded) {
+          (haveDms && link == kDgLinkDegraded)) {
         s_state = kDgVehLimited;
       } else {
         s_state = kDgVehRun;
@@ -243,11 +305,15 @@ void Safety_Tick(uint32_t now_ms, const dg_safety_inputs_t *inputs) {
       break;
 
     case kDgVehStopped:
-      /* VEH-012/SYS-FR-033: level alone can never leave STOPPED. */
-      if (inputs->operator_rearm_pressed) {
+      /* Was VEH-012/SYS-FR-033 "level alone can never leave STOPPED",
+       * enforced by requiring an operator re-arm button press. That button
+       * no longer exists (2026-08-15 simplification) -- auto-recovers once
+       * SafeConditionsSustained() has held for AUTO_REARM_HOLD_MS, a
+       * deliberate product trade-off, not an oversight (see that macro's
+       * comment). */
+      if (autoRearm) {
         s_state = kDgVehArmedIdle;
         s_faults = (dg_fault_flags_t){0};
-        PRINTF("[safety] re-armed from STOPPED\r\n");
       }
       break;
 
@@ -261,19 +327,23 @@ void Safety_Tick(uint32_t now_ms, const dg_safety_inputs_t *inputs) {
       break;
 
     case kDgVehFault:
-      if (!AnyFaultActive() && inputs->operator_rearm_pressed) {
+      if (!AnyFaultActive()) {
         s_state = kDgVehDisarmed;
         s_faults = (dg_fault_flags_t){0};
-        PRINTF("[safety] fault cleared, back to DISARMED\r\n");
       }
       break;
 
     case kDgVehEstop:
-      if (!inputs->estop_sense_asserted && rearmEdge) {
+      /* justEnteredEstop: never recover on the same tick ESTOP was entered
+       * -- `autoRearm` above may still reflect safe time banked before this
+       * e-stop even though s_safeSinceMs was just reset, since it was
+       * computed earlier in this same function call. Next tick recomputes
+       * autoRearm from the now-reset timer, so recovery still needs a full
+       * fresh AUTO_REARM_HOLD_MS from here. */
+      if (!justEnteredEstop && autoRearm) {
         s_canEstopLatched = false;
         s_faults.estop_active = false;
         s_state = kDgVehDisarmed;
-        PRINTF("[safety] e-stop released + re-armed -> DISARMED\r\n");
       }
       break;
 
@@ -282,6 +352,25 @@ void Safety_Tick(uint32_t now_ms, const dg_safety_inputs_t *inputs) {
              (int)s_state);
       s_state = kDgVehFault;
       break;
+  }
+
+  if (s_state != stateBeforeTick) {
+    static const char *const kStateNames[] = {"INIT",   "DISARMED", "ARMED_IDLE", "RUN",
+                                               "LIMITED", "DECEL",    "STOPPED",    "LINK_LOST",
+                                               "FAULT",   "ESTOP"};
+    PRINTF("[safety] state %s -> %s (level=%u link=%u haveDms=%u)\r\n",
+           kStateNames[(unsigned int)stateBeforeTick], kStateNames[(unsigned int)s_state],
+           (unsigned int)level, (unsigned int)link, (unsigned int)haveDms);
+
+    /* FAULT is entered from inside the switch above (Disarmed/ArmedIdle/
+     * Run/Limited -> Fault), unlike ESTOP which is forced by the pre-empt
+     * block above the switch (and resets s_safeSinceMs right there, see
+     * that comment) -- so this is the first and only place a fresh FAULT
+     * entry can reset the timer before FAULT's own recovery check
+     * (AnyFaultActive(), not autoRearm) is reached on a later tick. */
+    if (s_state == kDgVehFault) {
+      s_safeSinceMs = 0U;
+    }
   }
 
   (void)AlertLevelAtOrAbove; /* reserved for future per-level distraction

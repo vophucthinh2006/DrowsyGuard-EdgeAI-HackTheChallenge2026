@@ -5,6 +5,55 @@
 
 ---
 
+## 0. Implementation status — what is actually running today (added 2026-08-16)
+
+**Two independent implementations transmit `DMS_STATUS`/`VCS_STATUS` today, and only one
+of them traces to `shared/icd/icd.yaml` as this document requires:**
+
+- **`qualcomm_AI/dms-ap-uno-q/`** — the formal path. `python/drowsyguard/link/icd.py` +
+  `crc8.py` implement encode/decode against the ICD as specified; confirmed
+  bidirectional on real hardware 2026-08-15 (`dms-ap-uno-q/README.md`). No camera —
+  alert level is keyboard-driven for this test build.
+- **`qualcomm_AI/MAIN_DMS_YOLOX_System/copy-of-object-hunting/sketch/sketch.ino`** — the
+  real camera-driven pipeline, but with its **own independent, hand-rolled** CRC-8 and
+  frame encoder (`Crc8()`, `CANID_DMS_STATUS`/`CANID_VCS_STATUS` = `0x100`/`0x200`),
+  written without reference to `shared/icd/icd.yaml` or `icd.py`. It agrees with this
+  document on the IDs and on CRC-8 SAE-J1850 (poly `0x1D`, init `0xFF`, xorout `0xFF`,
+  matching §3's algorithm), but **only populates byte 0 (`alert_level`+`seq`), byte 5
+  (`face_conf_pct`, hardcoded to `100`) and byte 7 (`crc8`) of `DMS_STATUS`** — bytes 1–4
+  and 6 (`d1/d2/d3_state`, `d3_avail`, `perclos_pct`, `eye_closure_ms`, all seven flag
+  bits) are left zero-initialized, never written. This is consistent with **CAN-013**
+  ("`alert_level` is the only field the VCS safety path acts on"), so the safety path is
+  not affected, but every diagnostic/indication field this ICD defines for `DMS_STATUS`
+  is currently always zero on the one node with a real camera behind it.
+- This document's own "CI enforces it" claim (line 4) is not true across both
+  implementations — there is no CI check comparing `sketch.ino`'s hand-rolled encoder
+  against `icd.yaml`.
+
+**Resolved since Rev 0.1** (§1.1 and §9 below still say "ASSUMPTION"/"unconfirmed" —
+left as written there with this note as the correction, not rewritten in place):
+- **OI-04-01 / FDCAN1 on the DMS side is CONFIRMED**, not an open assumption: D4(PA12)=TX,
+  D5(PA11)=RX, using Arduino's own first-party `CAN.h` wrapper
+  (`arduino::ZephyrCAN`) rather than a raw Zephyr driver call (the first attempt at raw
+  `zephyr/drivers/can.h` failed — the UNO Q's shipped board overlay marks `&fdcan1` as
+  `zephyr,deferred-init`, so `device_init()` must be called by the app, which the raw
+  approach never did). Bidirectional link confirmed on real hardware 2026-08-15. OI-04-02's
+  SPI-CAN-controller fallback was never needed.
+- **OI-04-05 / DMS-side transceiver is resolved**: an external TJA1050 module,
+  powered at 5 V (in-spec; 3.3 V was tried and found insufficient to drive a valid
+  dominant level), with a 1 kΩ/2 kΩ resistor divider on the RXD line only (TXD needs
+  none — 3.3 V from the MCU is already a valid HIGH into a 5 V-supplied TJA1050). See
+  `dms-ap-uno-q/README.md`'s "Hardware setup that is CONFIRMED to work".
+- **OI-04-04 / CRC-8 cross-verification is still open, now across three
+  implementations, not two**: `vcs-mcxn947/src/icd/crc8.c` (with committed self-test
+  vectors), `dms-ap-uno-q/python/drowsyguard/link/crc8.py`, and
+  `MAIN_DMS_YOLOX_System/copy-of-object-hunting/sketch/sketch.ino`'s own `Crc8()`. All
+  three implement the same stated algorithm (poly `0x1D`, init/xorout `0xFF`), but there
+  is no evidence in this repo of a shared test-vector run across all three — `CAN-070`'s
+  `shared/icd/crc_vectors.csv` requirement is not satisfied for the third implementation.
+
+---
+
 ## 1. Physical layer
 
 | Property | Value | Note |
@@ -31,7 +80,7 @@ the CAN pair SHALL be twisted for its full length.
 | Node | Controller | Peripheral | Status |
 |---|---|---|---|
 | VCS | FRDM-MCXN947 | FlexCAN0, classical mode, PORT1_10 (TXD) / PORT1_11 (RXD), ALT11 | 🟡 DESIGNED — pin mapping confirmed against the SDK's own `flexcan/interrupt_transfer` reference example and the board schematic (Table 14 "CAN header pinout"); firmware in `vcs-mcxn947/` builds clean against it. Not yet flashed/measured on a live bus (no ✅ until [08](08-benchmark-log.md) has a run) |
-| DMS | Arduino UNO Q → STM32U585 | FDCAN1 in classical CAN mode | ⚠️ **ASSUMPTION** — see §9, untouched by the VCS bring-up above |
+| DMS | Arduino UNO Q → STM32U585 | FDCAN1 in classical CAN mode | ⚠️ Table says ASSUMPTION (Rev 0.1) — **now ✅ CONFIRMED, see [§0](#0-implementation-status--what-is-actually-running-today-added-2026-08-16)** |
 
 **CAN-003** — Classical CAN is used, not CAN FD, even though both controllers support FD.
 *Rationale: the payload is 8 bytes; FD buys nothing here and costs bit-timing configuration that
@@ -77,6 +126,9 @@ never be the reason a safety message is late.
 ## 3. `0x100 DMS_STATUS` — the safety-relevant message
 
 **Direction:** DMS → VCS · **DLC:** 8 · **Cycle:** 100 ms ± 10 ms
+
+> **⚠️ The deployed camera-driven sender only populates byte 0, byte 5 (hardcoded) and
+> byte 7 of this layout** — see [§0](#0-implementation-status--what-is-actually-running-today-added-2026-08-16).
 
 | Byte | Bits | Field | Type | Encoding |
 |---|---|---|---|---|
@@ -256,11 +308,11 @@ reported in `DIAG_RESP`. A demonstration that experienced a bus-off is not a cle
 
 | ID | Item | Impact | Owner | Due |
 |---|---|---|---|---|
-| **OI-04-01** ⚠️ | The STM32U585 on the Arduino UNO Q is assumed to expose FDCAN1 TX/RX on header-reachable pins. **Unconfirmed against the UNO Q schematic/pinout.** | If false, the whole DMS→VCS link must be re-planned | Hardware lead | +24 h from board arrival |
-| **OI-04-02** | Fallback if OI-04-01 fails: SPI CAN controller (MCP2515-class) on the DMS side. Adds ≈1 ms latency and one day of bring-up. Second fallback: UART + framed protocol with the same payloads. | Schedule | Hardware lead | Decision within 24 h |
+| ~~OI-04-01~~ | ~~The STM32U585 on the Arduino UNO Q is assumed to expose FDCAN1 TX/RX on header-reachable pins. Unconfirmed against the UNO Q schematic/pinout.~~ **Closed 2026-08-15** — confirmed on real hardware: D4(PA12)=TX, D5(PA11)=RX, via Arduino's own `CAN.h` wrapper. See [§0](#0-implementation-status--what-is-actually-running-today-added-2026-08-16). | If false, the whole DMS→VCS link must be re-planned | Hardware lead | Closed 2026-08-15 |
+| ~~OI-04-02~~ | ~~Fallback if OI-04-01 fails: SPI CAN controller (MCP2515-class) on the DMS side.~~ **Closed** — not needed, OI-04-01 confirmed working. | Schedule | Hardware lead | Closed 2026-08-15 |
 | **OI-04-03** | ~~Bit-timing register values for FlexCAN (MCXN947)~~ **VCS side resolved**: `FLEXCAN_CalculateImprovedTimingValues()` computes them at runtime from the measured peripheral clock (see `vcs-mcxn947/src/can_link/can_link.c`), avoiding hand-computed registers entirely — still to be **verified on a scope** (TC-CAN-003), not yet done. FDCAN (STM32U585) side unchanged: open. | Intermittent errors if mismatched | Firmware leads | Scope check before first two-node bring-up |
-| **OI-04-04** | CRC-8 implementation must be bit-identical on both sides — verify with a shared test vector before integration, not during it. VCS-side implementation + 7 self-test vectors exist (`vcs-mcxn947/src/icd/crc8.c`, run at every boot); DMS-side implementation does not exist yet, so cross-verification is still open. | Total link failure that looks like wiring | ICD owner | Before integration |
-| **OI-04-05** | Transceiver part selection: **VCS side resolved** — the FRDM-MCXN947 has an on-board TJA1057GTK/3Z already wired to CAN0 and header J10, confirmed against the schematic, no part to select. DMS side (whether the UNO Q can supply a transceiver's 3.3 V rail) is unchanged: open. | Bring-up blocker (DMS side only) | Hardware lead | +24 h from UNO Q arrival |
+| **OI-04-04** ⚠️ | CRC-8 implementation must be bit-identical on both sides — verify with a shared test vector before integration, not during it. VCS-side implementation + 7 self-test vectors exist (`vcs-mcxn947/src/icd/crc8.c`, run at every boot); DMS-side now has **two** independent implementations (`dms-ap-uno-q/python/drowsyguard/link/crc8.py`, and `MAIN_DMS_YOLOX_System/.../sketch.ino`'s own `Crc8()`) — neither has been cross-verified against `vcs-mcxn947`'s vectors via `shared/icd/crc_vectors.csv` (CAN-070). Still open, now with more to verify, not less. | Total link failure that looks like wiring | ICD owner | Before integration |
+| ~~OI-04-05~~ | ~~Transceiver part selection~~ **Closed** — VCS side: on-board TJA1057GTK/3Z, header J10, no part to select. DMS side: external TJA1050 at 5 V + resistor divider on RXD only, confirmed working on real hardware — see [§0](#0-implementation-status--what-is-actually-running-today-added-2026-08-16). | Bring-up blocker | Hardware lead | Closed 2026-08-15 |
 
 **CAN-070** — OI-04-04's test vector SHALL be committed as `shared/icd/crc_vectors.csv` and SHALL
 be executed as a unit test on **both** node builds. Two independently written CRCs that disagree
@@ -292,3 +344,4 @@ Do these in order. Do not skip ahead when it "should work".
 |---|---|---|---|
 | 0.1 | 2026-08-10 | ML_IoT_Love50 | Initial baseline |
 | 0.2 | 2026-08-10 | ML_IoT_Love50 | VCS-side CAN0 pin mapping, timing calc and transceiver confirmed against the FRDM-MCXN947 schematic + SDK reference example; firmware in `vcs-mcxn947/` builds against it. OI-04-03/04/05 partially closed (VCS half only). DMS-side OI-04-01 unchanged/still open. |
+| 0.2.1 | 2026-08-16 | ML_IoT_Love50 | Added §0 Implementation status: OI-04-01/02/05 closed (FDCAN1 + transceiver confirmed on real hardware); OI-04-04 reopened wider (3 CRC-8 implementations now, not 2, none cross-verified); documented that `MAIN_DMS_YOLOX_System`'s sketch.ino is a second, independent, non-`icd.yaml`-derived DMS_STATUS/VCS_STATUS implementation that only populates 3 of `DMS_STATUS`'s 8 bytes. No byte-layout/field definitions changed. |

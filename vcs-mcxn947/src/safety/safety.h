@@ -22,14 +22,13 @@
 extern "C" {
 #endif
 
-/* Physical inputs sampled once per control tick (VEH peripheral table). */
+/* Physical inputs sampled once per control tick (VEH peripheral table).
+ * Simplified 2026-08-15: no operator re-arm/ACK/e-stop-sense buttons exist
+ * on this board anymore (system block diagram only has gas/brake) -- every
+ * recovery transition that used to need a button press now happens
+ * automatically once conditions are safe again, see safety.c's
+ * SafeConditionsSustained(). */
 typedef struct {
-  /* One physical button serves both roles (specs/05 §2.2 lists a single
-   * "Operator re-arm" input): DISARMED->ARMED_IDLE the first time,
-   * STOPPED/FAULT/ESTOP->{ARMED_IDLE,DISARMED} every time after. */
-  bool operator_rearm_pressed;
-  bool ack_pressed;
-  bool estop_sense_asserted;   /* physical e-stop loop broken/asserted */
   bool throttle_nonzero;       /* VEH-011: ARMED_IDLE -> RUN */
   uint16_t motor_current_ma;   /* 0 = "not wired yet", see OI-05-01 */
   uint16_t motor_rail_mv;      /* 0 = "not wired yet", see OI-05-01 */

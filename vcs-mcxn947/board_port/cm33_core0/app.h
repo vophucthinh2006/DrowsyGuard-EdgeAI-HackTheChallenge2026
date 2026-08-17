@@ -33,7 +33,9 @@
 #define MOTION_EN_GPIO GPIO0
 #define MOTION_EN_PIN  28U /* Arduino J2-D8, active-high, shared R_EN+L_EN on both modules */
 
-/* ---- Alerts — specs/05 §5 ------------------------------------------------ */
+/* ---- Alerts — specs/05 §5 -- simplified 2026-08-15 to buzzer+RGB LED only,
+ * matching the system block diagram's "Local Warning System" box (no
+ * vibration motor / fan relay / hazard lamps in scope) ---------------------- */
 #define BUZZER_PWM_BASEADDR     PWM1 /* submodule 2, PORT2_2 / PWM1_A2, J3-7 */
 #define BUZZER_PWM_SRC_CLK_FREQ CLOCK_GetFreq(kCLOCK_BusClk)
 
@@ -44,22 +46,22 @@
 #define LED_BLUE_GPIO  GPIO1
 #define LED_BLUE_PIN   2U
 
-#define VIBRATION_GPIO GPIO0
-#define VIBRATION_PIN  24U /* Arduino J2-D11 */
-#define FAN_RELAY_GPIO GPIO0
-#define FAN_RELAY_PIN  26U /* Arduino J2-D12 */
-#define HAZARD_L_GPIO  GPIO0
-#define HAZARD_L_PIN   25U /* Arduino J2-D13 */
-#define HAZARD_R_GPIO  GPIO4
-#define HAZARD_R_PIN   0U  /* Arduino J2-D18 */
-
-/* ---- Driver / operator inputs — active-low (pulled up in pin_mux.c) ----- */
-#define ACK_BUTTON_GPIO   GPIO4
-#define ACK_BUTTON_PIN    1U /* Arduino J2-D19 */
-#define REARM_BUTTON_GPIO GPIO2
-#define REARM_BUTTON_PIN  3U /* Arduino J3-5 */
-#define ESTOP_SENSE_GPIO  GPIO2
-#define ESTOP_SENSE_PIN   5U /* Arduino J3-9, see pin_mux.c header comment */
+/* ---- Gas/brake pedal simulation (SW2/SW3), active-low, onboard buttons -
+ * Reuses the board's own onboard push buttons (UM12018 Table 4) instead of
+ * external wiring -- both are documented as usable as plain GPIO inputs:
+ *   SW2 = "Wakeup button", P0_23/WAKEUP_B -- also shared with Arduino
+ *         header J4 pin 12 (ARD_A5) via SJ9, but SJ9's default position
+ *         doesn't block reading P0_23 as GPIO, both paths see the same net.
+ *   SW3 = "ISP mode switch", P0_6/ISPMODE_N-DEBUG -- UM12018 explicitly
+ *         says it "can also act as a general-purpose input". Only holding
+ *         it down DURING POWER-ON/RESET matters (the boot ROM samples it
+ *         then to decide ISP vs. normal boot) -- reading it here, well
+ *         after boot, in the running application, is exactly the
+ *         documented use and has no such side effect. */
+#define GAS_BUTTON_GPIO   GPIO0
+#define GAS_BUTTON_PIN    23U /* SW2, onboard */
+#define BRAKE_BUTTON_GPIO GPIO0
+#define BRAKE_BUTTON_PIN  6U  /* SW3, onboard -- don't hold at power-on */
 
 /* ---- Watchdog (WWDT0) — specs/05 VEH-052/053 ----------------------------- */
 #define WWDT          WWDT0

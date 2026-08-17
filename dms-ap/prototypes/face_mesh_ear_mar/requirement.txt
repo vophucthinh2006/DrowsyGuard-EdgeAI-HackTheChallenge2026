@@ -1,4 +1,0 @@
-opencv-python
-mediapipe<1.0.0
-numpy
-scipy

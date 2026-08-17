@@ -1,0 +1,19 @@
+# Arduino CLI sketch project file. Auto-managed once opened in App Lab /
+# built with arduino-cli -- don't hand-edit after that point. Same base as
+# ../../../../../QUALCOMM_AI/DrowsyGuard-EdgeAI-HackTheChallenge2026/dms-ap/app/sketch/sketch.yaml
+# (confirmed real UNO Q app profile, ShawnHymel/arduino_uno_q_blink_cli on
+# GitHub). FQBN: `arduino:zephyr:unoq` -- Zephyr-based Arduino core, which is
+# exactly why sketch.ino can #include native <zephyr/drivers/can.h> headers
+# and why boards/*.overlay + boards/*.conf next to this file are how FDCAN1
+# gets enabled (see that directory's file comments).
+profiles:
+  default:
+    fqbn: arduino:zephyr:unoq
+    platforms:
+      - platform: arduino:zephyr
+    libraries:
+      - MsgPack (0.4.2)
+      - DebugLog (0.8.4)
+      - ArxContainer (0.7.0)
+      - ArxTypeTraits (0.3.1)
+default_profile: default

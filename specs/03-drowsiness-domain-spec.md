@@ -7,6 +7,63 @@
 
 ---
 
+## 0. Implementation status — what is actually running today (added 2026-08-16)
+
+Everything below §1 describes the **target design** for the full three-domain fusion
+pipeline (`dms-ap/app/python/drowsyguard/domains/` + `fusion/`, in the canonical
+`DrowsyGuard-EdgeAI-HackTheChallenge2026/dms-ap/` tree). **That pipeline is not what is
+deployed and running on real hardware today.** The only camera-driven, on-hardware
+implementation that currently exists is
+`qualcomm_AI/MAIN_DMS_YOLOX_System/copy-of-object-hunting/` (`python/main.py` +
+`sketch/sketch.ino`), and it is a substantially reduced subset of this spec:
+
+- **No D1 (distraction).** The deployed model (Edge Impulse-trained YOLOX Nano,
+  `ei-model-1086456-7`, see `app.yaml`) outputs three per-frame class labels —
+  `closed_eye`, `open_eye`, `yawning` — with confidence scores only. There are no face
+  landmarks and no head-pose (yaw/pitch) output, so §3's yaw/pitch-based `off_road()`
+  detector has no signal to run on. Distraction is not detected at all in the deployed
+  system.
+- **No PERCLOS sub-signal.** §5.2 (the 60 s rolling P80 window) is not computed anywhere
+  in the deployed code.
+- **No MAR-based mouth measurement.** §4.1's mouth-aspect-ratio detector does not exist;
+  "yawning" is a single model class, gated on confidence and duration only (see below).
+- **No fusion ladder (§6.1).** The deployed MCU (`sketch.ino`) computes `alert_level`
+  directly from raw eye-closed/yawn duration with a simple priority `if`/`else if` chain
+  (L3 if eyes closed ≥ 4.0 s, else L2 if ≥ 2.0 s, else L1 if ≥ 1.0 s, else L1 if yawning
+  ≥ 1.5 s) — not the "≥2 domains ACTIVE ⇒ L2" / "L2 sustained 10 s ⇒ L3" corroboration
+  rule in §6.1, since there is only ever at most one domain (eye-closure) driving L2/L3.
+- **Different D3a timing values than §5.1/§8.** The deployed thresholds are: L1-equivalent
+  (`TARGET_EYE_WARN_MS`) = **1000 ms**, L2-equivalent (`TARGET_EYE_ALARM_MS`) =
+  **2000 ms**, L3-equivalent (`TARGET_EYE_DANGER_MS`) = **4000 ms** — vs. this spec's
+  800/1500/3000 ms. These have **not** been reconciled against the blink-physiology
+  literature in §5.1/§10; they are current shipped values, not a revision of the
+  research-derived priors. Yawn gate (`TARGET_YAWN_WARN_MS` = 1500 ms) does match
+  `YAWN_MIN_MS`.
+- **Timing is real-time, matching DOM-FLT-001's intent, at different absolute values.**
+  `sketch.ino` tracks closed/yawn duration with `millis()` timestamps
+  (`eyeClosedSinceMs`/`yawnSinceMs`), not frame counts — consistent with DOM-FLT-001 —
+  so the §5.1 "What the driver actually experiences" table's `+ frame quantisation`
+  term does not apply to the deployed system; time-to-alert there is simply
+  `dwell + pipeline_latency`, no extra 100 ms term.
+- **Ack is unconditional, no refractory.** `dismiss_alert` (triggered by a screen tap)
+  resets the eye/yawn counters immediately and silences the buzzer with no
+  `ACK_REFRACTORY_MS` / `ACK_MAX_CONSECUTIVE` bookkeeping (§6.4 DOM-FUS-001/003 are not
+  implemented).
+- **An extra confidence-filtering layer this spec doesn't describe.** Detections are
+  filtered *twice*: `main.py`'s `CLASS_THRESHOLDS` (closed_eye ≥ 0.35, yawning ≥ 0.45,
+  open_eye ≥ 0.55) gates what even gets sent from the MPU to the MCU; `sketch.ino` then
+  applies its own second gate (`CONF_EYE_TH` = 0.20, `CONF_YAWN_TH` = 0.70) before
+  counting a frame as closed/yawning. §5.1's single `EYE_CONF_MIN` = 0.50 describes
+  neither layer.
+
+None of this is a correction to the design below — the literature-backed D1/D2/D3 fusion
+model remains the target if/when the canonical `dms-ap` pipeline (real face-landmark
+model, not YOLOX class detection) is wired in, per `dms-ap-uno-q/README.md`'s own
+integration note. This section exists so the gap between "what this document specifies"
+and "what ships today" is not silently discovered by a judge or a future engineer.
+
+---
+
 ## 1. Design philosophy
 
 Three facts shape every number in this document.
@@ -57,6 +114,8 @@ IDLE ──▶ ACTIVE ──▶ SEVERE ──▶ CRITICAL   (CRITICAL: D3 only)
 ---
 
 ## 3. D1 — Distraction (mất tập trung)
+
+> **Not implemented in the deployed system** — see [§0](#0-implementation-status--what-is-actually-running-today-added-2026-08-16). The deployed model has no head-pose output.
 
 ### 3.1 What is measured
 
@@ -237,6 +296,8 @@ closed.
 | **D3 CRITICAL** — continuous closure (unresponsive) | `D3_CRITICAL_MS` | **3000** | ms |
 | Closure clear dwell | `D3_CLEAR_MS` | 1000 | ms |
 | Minimum eye-state confidence to count | `EYE_CONF_MIN` | 0.50 | — |
+
+> **Deployed values differ** — see [§0](#0-implementation-status--what-is-actually-running-today-added-2026-08-16): shipped `sketch.ino` uses 1000/2000/4000 ms, not 800/1500/3000, and two confidence layers (0.35/0.45/0.55 in Python, 0.20/0.70 in the MCU) rather than one `EYE_CONF_MIN`.
 
 #### Why these numbers
 
@@ -554,3 +615,4 @@ figures appear in any submitted document or public claim.
 | Rev | Date | Author | Change |
 |---|---|---|---|
 | 0.1 | 2026-08-10 | ML_IoT_Love50 | Initial baseline |
+| 0.1.1 | 2026-08-16 | ML_IoT_Love50 | Added §0 Implementation status documenting the gap between this spec and the deployed `MAIN_DMS_YOLOX_System` pipeline (no D1, no PERCLOS, no MAR, no fusion ladder, different D3a timing values, two-layer confidence gating). No normative values below §1 were changed. |
