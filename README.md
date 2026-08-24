@@ -34,16 +34,16 @@ This repository holds the **firmware and application code** for both ECUs. Desig
 ![DrowsyGuard system block diagram](Images/system-architecture.jpg)
 
 ```
-                          ┌───────────────────────────────────────────┐
-                          │   Arduino UNO Q  (AI / MPU + MCU)          │
+                          ┌─────────────────────────────────────────────┐
+                          │   Arduino UNO Q  (AI / MPU + MCU)           │
                           │                                             │
    USB Camera ──────────► │  video_object_detection Brick               │
                           │  (YOLOX Nano: closed_eye/open_eye/yawning)  │
-                          │        │                                     │
-                          │        ▼                                     │
+                          │        │                                    │
+                          │        ▼                                    │
                           │  main.py  (MPU, Python)                     │
-                          │        │ Bridge RPC                          │
-                          │        ▼                                     │
+                          │        │ Bridge RPC                         │
+                          │        ▼                                    │
                           │  sketch.ino  (MCU)                          │
                           │  alert decision + buzzer + FDCAN1           │
                           └───────────────┬─────────────────────────────┘
@@ -53,8 +53,8 @@ This repository holds the **firmware and application code** for both ECUs. Desig
                           │                                             │
                           │  DMS_STATUS (0x100) → vehicle state machine │
                           │  VCS_STATUS (0x200) → duty%/speed  ─────────┼──► back to UNO Q
-                          │        │                                     │
-                          │        ▼                                     │
+                          │        │                                    │
+                          │        ▼                                    │
                           │  2× BTS7960 → 4 DC motors (diff. drive)     │
                           │  buzzer + RGB LED alert pattern             │
                           │  gas/brake (onboard SW2/SW3)                │
