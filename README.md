@@ -72,7 +72,7 @@ They have **not been reconciled**. `dms-ap-uno-q/README.md` explicitly names thi
 
 | Path | Role | Hardware | Status |
 |---|---|---|---|
-| [`MAIN_DMS_YOLOX_System/copy-of-object-hunting/`](MAIN_DMS_YOLOX_System/copy-of-object-hunting/README.md) | **The actual AI pipeline.** USB camera → Edge Impulse YOLOX Nano (eye/yawn detection) → alert decision → buzzer + CAN | Arduino UNO Q | Running on real hardware; see its own README for details and known limitations |
+| [`MAIN_DMS_YOLOX_System/copy-of-object-hunting/`](MAIN_DMS_YOLOX_System/copy-of-object-hunting/README.md) | **The actual AI pipeline.** USB camera → [Edge Impulse YOLOX Nano](https://studio.edgeimpulse.com/public/1095447/live) (eye/yawn detection) → alert decision → buzzer + CAN | Arduino UNO Q | Running on real hardware; see its own README for details and known limitations |
 | [`dms-ap-uno-q/`](dms-ap-uno-q/README.md) | Reference implementation of the **AP↔MCU Bridge + FDCAN1 + formal ICD** control path, with a **keyboard-driven** stand-in for the AI (`0`–`3` keys) instead of a camera | Arduino UNO Q | CAN link confirmed bidirectional on real hardware |
 | [`vcs-mcxn947/`](vcs-mcxn947/README.md) | **Vehicle Control Simulator** — receives `DMS_STATUS` over CAN, runs the vehicle state machine (arm/run/limited/decel/stopped/fault/estop), drives 2× differential-drive motors, buzzer, and RGB LED | NXP FRDM-MCXN947 | Builds clean, flashed and confirmed on real hardware |
 | [`dms-sim-mcxn947/`](dms-sim-mcxn947/README.md) | Bench test tool only — plays the DMS-AP side of the CAN link on **real FLEXCAN0** (not a UART shortcut), so `vcs-mcxn947` can be validated with two boards and no Arduino | NXP FRDM-MCXN947 (second board) | Bring-up/test tool, not product firmware |
@@ -113,7 +113,7 @@ The DMS dashboard mirrors the current level in real time:
 
 ### 5.2 Software
 
-- [Arduino App Lab](https://docs.arduino.cc/software/app-lab/) (for the UNO Q applications) + [Edge Impulse](https://edgeimpulse.com/) (YOLOX Nano model training/deployment)
+- [Arduino App Lab](https://docs.arduino.cc/software/app-lab/) (for the UNO Q applications) + [Edge Impulse](https://edgeimpulse.com/) (YOLOX Nano model training/deployment: [Edge Impulse Studio Project](https://studio.edgeimpulse.com/public/1095447/live))
 - MCUXpresso SDK + [west](https://docs.zephyrproject.org/latest/develop/west/index.html) build tool (Zephyr RTOS toolchain for the FRDM-MCXN947 boards — external, not vendored in this repo)
 - Python 3 (for `dms-ap-uno-q`'s Bridge/ICD reference implementation)
 

@@ -73,7 +73,7 @@ Two tabs, served at `http://<UNO-Q-IP>:7000`:
 - **Per-class confidence thresholds** — `CLASS_THRESHOLDS` in `python/main.py` (`closed_eye`, `yawning`, `open_eye`, plus a `default`). Adjustable at runtime from the UI slider (`override_th`) or via the `override_class_th` WebSocket message for per-label tuning.
 - **Camera capture rate** — `Camera(fps=8)` in `python/main.py`. This is a *request* to the USB driver, not a guarantee — the driver may round to its nearest supported mode.
 - **Alert timing** — `TARGET_EYE_WARN_MS` / `TARGET_EYE_ALARM_MS` / `TARGET_EYE_DANGER_MS` / `TARGET_YAWN_WARN_MS` in `sketch/sketch.ino`.
-- **Detection model** — set in `app.yaml` (`arduino:video_object_detection: model: ei-model-1086456-7`), an Edge Impulse-trained YOLOX Nano model for `closed_eye` / `open_eye` / `yawning`.
+- **Detection model** — set in `app.yaml` (`arduino:video_object_detection: model: ei-model-1086456-7`), an Edge Impulse-trained YOLOX Nano model ([Edge Impulse Studio Live Project](https://studio.edgeimpulse.com/public/1095447/live)) for `closed_eye` / `open_eye` / `yawning`.
 
 ## Getting Started
 
