@@ -31,7 +31,7 @@ This repository holds the **firmware and application code** for both ECUs. Desig
 
 ## 2. System Architecture
 
-![DrowsyGuard system block diagram](Images/system-architecture.png)
+![DrowsyGuard system block diagram](Images/system-architecture.jpg)
 
 ```
                           ┌───────────────────────────────────────────┐
